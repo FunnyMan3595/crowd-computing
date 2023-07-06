@@ -1,0 +1,26 @@
+modLoader="javafml"
+loaderVersion="[42,)"
+license="Apache License"
+issueTrackerURL="https://github.com/FunnyMan3595/crowd-computing/issues"
+
+[[mods]]
+modId="crowd_computing"
+version="${file.jarVersion}"
+displayName="Crowd Computing"
+displayURL="github.com/FunnyMan3595/crowd-computing"
+authors="FunnyMan3595"
+description='''Crowd Computing: Innovation at the speed of chat.'''
+
+[[dependencies.crowd_computing]]
+    modId = "forge"
+    mandatory = true
+    versionRange = "[43.1.2,)"
+    ordering = "NONE"
+    side = "BOTH"
+
+[[dependencies.crowd_computing]]
+    modId = "minecraft"
+    mandatory = true
+    versionRange = "[1.19.2, 1.20)"
+    ordering = "NONE"
+    side = "BOTH"
