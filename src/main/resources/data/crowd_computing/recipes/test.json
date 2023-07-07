@@ -1,0 +1,18 @@
+{
+  "type" : "forge:conditional",
+  "recipes" : [ {
+    "conditions" : [ {
+      "type" : "crowd_computing:should_load_defaults"
+    } ],
+    "recipe" : {
+      "type" : "minecraft:crafting_shapeless",
+      "ingredients" : [ {
+        "item" : "minecraft:dirt"
+      } ],
+      "result" : {
+        "item" : "minecraft:diamond",
+        "count" : 1
+      }
+    }
+  } ]
+}
