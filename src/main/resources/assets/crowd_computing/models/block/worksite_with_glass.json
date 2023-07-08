@@ -276,5 +276,155 @@
         "texture" : "#frame"
       }
     }
+  }, {
+    "name" : "w glass",
+    "from" : [ 1, 2, 2 ],
+    "to" : [ 2, 14, 14 ],
+    "faces" : {
+      "north" : {
+        "uv" : [ 14, 2, 15, 14 ],
+        "texture" : "#glass"
+      },
+      "east" : {
+        "uv" : [ 2, 2, 14, 14 ],
+        "texture" : "#glass"
+      },
+      "south" : {
+        "uv" : [ 1, 2, 2, 14 ],
+        "texture" : "#glass"
+      },
+      "west" : {
+        "uv" : [ 2, 2, 14, 14 ],
+        "texture" : "#glass"
+      },
+      "up" : {
+        "uv" : [ 1, 2, 2, 14 ],
+        "texture" : "#glass"
+      },
+      "down" : {
+        "uv" : [ 1, 2, 2, 14 ],
+        "texture" : "#glass"
+      }
+    }
+  }, {
+    "name" : "e glass",
+    "from" : [ 14, 2, 2 ],
+    "to" : [ 15, 14, 14 ],
+    "faces" : {
+      "north" : {
+        "uv" : [ 1, 2, 2, 14 ],
+        "texture" : "#glass"
+      },
+      "east" : {
+        "uv" : [ 2, 2, 14, 14 ],
+        "texture" : "#glass"
+      },
+      "south" : {
+        "uv" : [ 14, 2, 15, 14 ],
+        "texture" : "#glass"
+      },
+      "west" : {
+        "uv" : [ 2, 2, 14, 14 ],
+        "texture" : "#glass"
+      },
+      "up" : {
+        "uv" : [ 14, 2, 15, 14 ],
+        "texture" : "#glass"
+      },
+      "down" : {
+        "uv" : [ 14, 2, 15, 14 ],
+        "texture" : "#glass"
+      }
+    }
+  }, {
+    "name" : "s glass",
+    "from" : [ 2, 2, 14 ],
+    "to" : [ 14, 14, 15 ],
+    "faces" : {
+      "north" : {
+        "uv" : [ 2, 2, 14, 14 ],
+        "texture" : "#glass"
+      },
+      "east" : {
+        "uv" : [ 1, 2, 2, 14 ],
+        "texture" : "#glass"
+      },
+      "south" : {
+        "uv" : [ 2, 2, 14, 14 ],
+        "texture" : "#glass"
+      },
+      "west" : {
+        "uv" : [ 14, 2, 15, 14 ],
+        "texture" : "#glass"
+      },
+      "up" : {
+        "uv" : [ 2, 14, 14, 15 ],
+        "texture" : "#glass"
+      },
+      "down" : {
+        "uv" : [ 2, 1, 14, 2 ],
+        "texture" : "#glass"
+      }
+    }
+  }, {
+    "name" : "top glass",
+    "from" : [ 2, 14, 2 ],
+    "to" : [ 14, 15, 14 ],
+    "faces" : {
+      "north" : {
+        "uv" : [ 2, 1, 14, 2 ],
+        "texture" : "#glass"
+      },
+      "east" : {
+        "uv" : [ 2, 1, 14, 2 ],
+        "texture" : "#glass"
+      },
+      "south" : {
+        "uv" : [ 2, 1, 14, 2 ],
+        "texture" : "#glass"
+      },
+      "west" : {
+        "uv" : [ 2, 1, 14, 2 ],
+        "texture" : "#glass"
+      },
+      "up" : {
+        "uv" : [ 2, 2, 14, 14 ],
+        "texture" : "#glass"
+      },
+      "down" : {
+        "uv" : [ 2, 2, 14, 14 ],
+        "texture" : "#glass"
+      }
+    }
+  }, {
+    "name" : "n glass",
+    "from" : [ 2, 2, 1 ],
+    "to" : [ 14, 14, 2 ],
+    "faces" : {
+      "north" : {
+        "uv" : [ 2, 2, 14, 14 ],
+        "texture" : "#glass"
+      },
+      "east" : {
+        "uv" : [ 14, 2, 15, 14 ],
+        "texture" : "#glass"
+      },
+      "south" : {
+        "uv" : [ 2, 2, 14, 14 ],
+        "texture" : "#glass"
+      },
+      "west" : {
+        "uv" : [ 1, 2, 2, 14 ],
+        "texture" : "#glass"
+      },
+      "up" : {
+        "uv" : [ 2, 1, 14, 2 ],
+        "texture" : "#glass"
+      },
+      "down" : {
+        "uv" : [ 2, 14, 14, 15 ],
+        "texture" : "#glass"
+      }
+    }
   } ]
 }
