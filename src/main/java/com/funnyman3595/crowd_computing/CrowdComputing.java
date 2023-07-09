@@ -27,7 +27,6 @@ import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegisterEvent;
 
 import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -46,6 +45,7 @@ public class CrowdComputing {
 
 	public static final Path CONFIG_SUBDIR = FMLPaths.CONFIGDIR.get().resolve(MODID);
 	public static final Path WORKSITES_DIR = CONFIG_SUBDIR.resolve("worksites");
+	public static final Path WORKSITE_UPGRADES_DIR = CONFIG_SUBDIR.resolve("worksite_upgrades");
 
 	public static final DeferredRegister<Block> BLOCKS = DeferredRegister.create(ForgeRegistries.BLOCKS, MODID);
 	public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, MODID);
@@ -57,11 +57,14 @@ public class CrowdComputing {
 		ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, Config.COMMON.getRight());
 
 		try {
-			if (!Files.isDirectory(WORKSITES_DIR)) {
+			if (!Files.isDirectory(CONFIG_SUBDIR)) {
 				Files.createDirectories(WORKSITES_DIR);
-
 				for (DefaultWorksites worksite : DefaultWorksites.ALL) {
 					worksite.writeConfig();
+				}
+				Files.createDirectories(WORKSITE_UPGRADES_DIR);
+				for (DefaultWorksiteUpgrades worksite_upgrade : DefaultWorksiteUpgrades.ALL) {
+					worksite_upgrade.writeConfig();
 				}
 			}
 		} catch (IOException e) {
@@ -90,8 +93,30 @@ public class CrowdComputing {
 				WorksiteBlock.items.put(name, ITEMS.register(name,
 						() -> new BlockItem(WorksiteBlock.blocks.get(name).get(), new Item.Properties())));
 			});
-		} catch (IOException e) {
-			throw new RuntimeException("Unable to read worksite directory.", e);
+		} catch (Exception e) {
+			throw new RuntimeException("Unable to read worksites directory.", e);
+		}
+
+		try {
+			Files.list(WORKSITE_UPGRADES_DIR).forEach(path -> {
+				String[] split = path.getFileName().toString().split("\\.", 2);
+				if (split.length != 2 || !split[1].equalsIgnoreCase("json")) {
+					return;
+				}
+				String name = "worksite_upgrade/" + split[0].toLowerCase();
+
+				JsonObject tree;
+				try {
+					tree = GSON.fromJson(new FileReader(path.toFile()), JsonObject.class);
+				} catch (IOException e) {
+					LOGGER.error("Unable to load worksite upgrade file " + path, e);
+					return;
+				}
+				WorksiteUpgrade.items.put(name, ITEMS.register(name,
+						() -> new WorksiteUpgradeItem(WorksiteUpgrade.load(name, tree))));
+			});
+		} catch (Exception e) {
+			throw new RuntimeException("Unable to read worksite upgrades directory.", e);
 		}
 		
 		MENU_TYPES.register("worksite", () -> new MenuType<WorksiteBlockMenu>(WorksiteBlockMenu::new));
@@ -116,7 +141,6 @@ public class CrowdComputing {
 
 	private void registerConditionSerializers(final RegisterEvent event) {
 		if (event.getRegistryKey().equals(ForgeRegistries.Keys.RECIPE_SERIALIZERS)) {
-			LOGGER.info("Loading serializer.");
 			event.register(ForgeRegistries.Keys.RECIPE_SERIALIZERS,
 					helper -> CraftingHelper.register(ShouldLoadDefaultsCondition.SERIALIZER));
 		}

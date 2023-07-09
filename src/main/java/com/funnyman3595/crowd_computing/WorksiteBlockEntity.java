@@ -148,35 +148,36 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 		return true;
 	}
 
-	public void resize(NonNullList<ItemStack> list, int size) {
-		if (size > list.size()) {
-			for (int i = 0; i < size - list.size(); i++) {
-				list.add(ItemStack.EMPTY);
-			}
-		} else {
-			while (list.size() > size) {
-				ItemStack removed = list.remove(list.size() - 1);
-				if (!level.isClientSide() && !removed.isEmpty()) {
+	public NonNullList<ItemStack> resize(NonNullList<ItemStack> list, int size) {
+		NonNullList<ItemStack> new_list = NonNullList.withSize(size, ItemStack.EMPTY);
+		for (int i = 0; i < list.size(); i++) {
+			ItemStack stack = list.get(i);
+			if (i < size) {
+				new_list.set(i, stack);
+			} else {
+				if (!level.isClientSide() && !stack.isEmpty()) {
 					BlockPos pos = getBlockPos();
-					ItemEntity entity = new ItemEntity(level, pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, removed);
+					ItemEntity entity = new ItemEntity(level, pos.getX() + 0.5, pos.getY() + 1.0, pos.getZ() + 0.5,
+							stack);
 					entity.setDefaultPickUpDelay();
 					level.addFreshEntity(entity);
 				}
 			}
 		}
+		return new_list;
 	}
 
 	public void recalcSlots() {
 		if (input_items.size() != getInputSlotCount()) {
-			resize(input_items, getInputSlotCount());
+			input_items = resize(input_items, getInputSlotCount());
 		}
-		slot_counts.set(INPUTS_INDEX,  getInputSlotCount());
+		slot_counts.set(INPUTS_INDEX, getInputSlotCount());
 		if (tool_items.size() != getToolSlotCount()) {
-			resize(tool_items, getToolSlotCount());
+			tool_items = resize(tool_items, getToolSlotCount());
 		}
 		slot_counts.set(TOOLS_INDEX, getToolSlotCount());
 		if (output_items.size() != getOutputSlotCount()) {
-			resize(output_items, getOutputSlotCount());
+			output_items = resize(output_items, getOutputSlotCount());
 		}
 		slot_counts.set(OUTPUTS_INDEX, getOutputSlotCount());
 	}
@@ -185,29 +186,32 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 		if (slot < 0 || slot >= getContainerSize()) {
 			return null;
 		}
-		
+
 		if (slot < slot_counts.get(UPGRADES_INDEX)) {
 			return Pair.of(upgrades, slot);
 		}
 		slot -= slot_counts.get(UPGRADES_INDEX);
-		
+
 		if (slot < slot_counts.get(INPUTS_INDEX)) {
 			return Pair.of(input_items, slot);
 		}
 		slot -= slot_counts.get(INPUTS_INDEX);
-		
+
 		if (slot < slot_counts.get(TOOLS_INDEX)) {
 			return Pair.of(tool_items, slot);
 		}
 		slot -= slot_counts.get(TOOLS_INDEX);
-		
+
 		return Pair.of(output_items, slot);
 	}
 
 	@Override
 	public ItemStack getItem(int slot) {
 		Pair<List<ItemStack>, Integer> slot_pair = getSlot(slot);
-		return slot_pair.getLeft().get(slot_pair.getRight());
+		if (slot_pair != null) {
+			return slot_pair.getLeft().get(slot_pair.getRight());
+		}
+		return ItemStack.EMPTY;
 	}
 
 	@Override

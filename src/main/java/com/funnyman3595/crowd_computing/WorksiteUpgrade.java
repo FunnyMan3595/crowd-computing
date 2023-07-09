@@ -1,8 +1,14 @@
 package com.funnyman3595.crowd_computing;
 
+import java.util.HashMap;
+
 import com.google.gson.JsonObject;
 
+import net.minecraft.world.item.Item;
+import net.minecraftforge.registries.RegistryObject;
+
 public record WorksiteUpgrade(int input_slot_count, int tool_slot_count, int output_slot_count, int stack_size) {
+	public static HashMap<String, RegistryObject<Item>> items = new HashMap<String, RegistryObject<Item>>();
 
 	public static WorksiteUpgrade load(String name, JsonObject config) {
 		return new WorksiteUpgrade(loadInt(name, config, "input_slot_count", 0),

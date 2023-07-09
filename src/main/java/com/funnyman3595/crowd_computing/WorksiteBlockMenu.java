@@ -10,10 +10,12 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerData;
+import net.minecraft.world.inventory.ContainerSynchronizer;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.inventory.SimpleContainerData;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
+import net.minecraftforge.fml.util.ObfuscationReflectionHelper;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 
@@ -24,6 +26,7 @@ public class WorksiteBlockMenu extends AbstractContainerMenu {
 	public final Inventory player_inventory;
 	public Container client_cache = new SimpleContainer(1000);
 	public final ContainerData slot_counts;
+	private boolean lock_cache = false;
 
 	public WorksiteBlockMenu(int container_id, Inventory inventory) {
 		this(container_id, inventory, null, new SimpleContainerData(4));
@@ -72,7 +75,8 @@ public class WorksiteBlockMenu extends AbstractContainerMenu {
 		slot_offset += slot_counts.get(WorksiteBlockEntity.UPGRADES_INDEX);
 
 		if (slot_counts.get(WorksiteBlockEntity.INPUTS_INDEX) == 1) {
-			// Special case because the input slot looks wrong if there's only one and it's on the left.
+			// Special case because the input slot looks wrong if there's only one and it's
+			// on the left.
 			addSlot(new DynamicSlot(container, slot_offset, 8 + 1 * 18, 17 + 1 * 18));
 		} else {
 			makeVariableSlots(container, slot_offset, 2, 3, 8, 17, slot_counts.get(WorksiteBlockEntity.INPUTS_INDEX),
@@ -92,7 +96,6 @@ public class WorksiteBlockMenu extends AbstractContainerMenu {
 				slot_counts.get(WorksiteBlockEntity.OUTPUTS_INDEX), ResultSlot::new);
 
 		addInventorySlots();
-		broadcastChanges();
 	}
 
 	private void makeVariableSlots(Container container, int slot_offset, int cols, int rows, int x, int y, int slots,
@@ -175,17 +178,71 @@ public class WorksiteBlockMenu extends AbstractContainerMenu {
 
 	@Override
 	public void setData(int index, int value) {
-		super.setData(index, value);
+		CrowdComputing.LOGGER.error((worksite == null ? "CLIENT" : "SERVER") + "Setting data index=" + index);
 
+		Container old_cache = client_cache;
+		if (!lock_cache) {
+			client_cache = new SimpleContainer(1000);
+		}
+		int old_value = slot_counts.get(index);
+		super.setData(index, value);
 		updateSlots();
+
+		if (lock_cache) {
+			return;
+		}
+
+		int offset = 0;
+		for (int i = 0; i < index; i++) {
+			for (int slot = 0; slot < slot_counts.get(i); slot++) {
+				client_cache.setItem(offset + slot, old_cache.getItem(offset + slot));
+			}
+			offset += slot_counts.get(i);
+		}
+		for (int slot = 0; slot < Math.min(old_value, value); slot++) {
+			client_cache.setItem(offset + slot, old_cache.getItem(offset + slot));
+		}
+		int old_offset = offset + old_value;
+		offset += value;
+		for (int i = index + 1; i < 4; i++) {
+			for (int slot = 0; slot < slot_counts.get(i); slot++) {
+				client_cache.setItem(offset + slot, old_cache.getItem(old_offset + slot));
+			}
+			old_offset += slot_counts.get(i);
+			offset += slot_counts.get(i);
+		}
+	}
+
+	@Override
+	public void setItem(int slot, int state_id, ItemStack value) {
+		CrowdComputing.LOGGER.error((worksite == null ? "CLIENT" : "SERVER") + "Setting slot=" + slot);
+		lock_cache = false;
+		super.setItem(slot, state_id, value);
+	};
+
+	@Override
+	public void broadcastChanges() {
+		ContainerSynchronizer synchronizer = ObfuscationReflectionHelper.getPrivateValue(AbstractContainerMenu.class,
+				this, "synchronizer");
+		if (synchronizer != null) {
+			synchronizer.sendDataChange(this, 0, slot_counts.get(0));
+			synchronizer.sendDataChange(this, 1, slot_counts.get(1));
+			synchronizer.sendDataChange(this, 2, slot_counts.get(2));
+			synchronizer.sendDataChange(this, 3, slot_counts.get(3));
+		}
+		updateSlots();
+		super.broadcastChanges();
 	}
 
 	@Override
 	public void initializeContents(int stateId, List<ItemStack> items, ItemStack carried) {
+		CrowdComputing.LOGGER
+				.error((worksite == null ? "CLIENT" : "SERVER") + "Contents init with len: " + items.size());
 		super.initializeContents(stateId, new ArrayList<ItemStack>(), carried);
 		for (int i = 0; i < items.size(); i++) {
 			client_cache.setItem(i, items.get(i));
 		}
+		lock_cache = true;
 	}
 
 	public class DynamicSlot extends Slot {

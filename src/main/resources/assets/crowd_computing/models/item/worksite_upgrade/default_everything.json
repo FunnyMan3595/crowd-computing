@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "crowd_computing:item/worksite_upgrades/default_everything"
+  }
+}
