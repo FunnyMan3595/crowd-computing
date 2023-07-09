@@ -6,13 +6,16 @@ import com.google.gson.JsonObject;
 import com.mojang.logging.LogUtils;
 
 import net.minecraftforge.fml.config.ModConfig;
+import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.fml.loading.FMLPaths;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.crafting.CraftingHelper;
 import net.minecraftforge.event.AddReloadListenerEvent;
 import net.minecraftforge.event.RegisterCommandsEvent;
+import net.minecraft.client.gui.screens.MenuScreens;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
@@ -48,6 +51,7 @@ public class CrowdComputing {
 	public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, MODID);
 	public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITY_TYPES = DeferredRegister
 			.create(ForgeRegistries.BLOCK_ENTITY_TYPES, MODID);
+	public static final DeferredRegister<MenuType<?>> MENU_TYPES = DeferredRegister.create(ForgeRegistries.MENU_TYPES, MODID);
 
 	public CrowdComputing() {
 		ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, Config.COMMON.getRight());
@@ -58,6 +62,14 @@ public class CrowdComputing {
 
 				JsonObject default_worksite = new JsonObject();
 				default_worksite.addProperty("material", "wood");
+				default_worksite.addProperty("upgrade_slot_count", 0);
+				
+				JsonObject default_worksite_builtin = new JsonObject();
+				default_worksite_builtin.addProperty("input_slot_count", 1);
+				default_worksite_builtin.addProperty("tool_slot_count", 1);
+				default_worksite_builtin.addProperty("output_slot_count", 1);
+				default_worksite_builtin.addProperty("stack_size", 1);
+				default_worksite.add("builtin", default_worksite_builtin);
 
 				FileWriter default_worksite_writer = new FileWriter(WORKSITES_DIR.resolve("default_wood.json").toFile());
 				default_worksite_writer.write(GSON.toJson(default_worksite));
@@ -93,13 +105,17 @@ public class CrowdComputing {
 			throw new RuntimeException("Unable to read worksite directory.", e);
 		}
 		
+		MENU_TYPES.register("worksite", () -> new MenuType<WorksiteBlockMenu>(WorksiteBlockMenu::new));
+		
 		BLOCKS.register(FMLJavaModLoadingContext.get().getModEventBus());
 		ITEMS.register(FMLJavaModLoadingContext.get().getModEventBus());
 		BLOCK_ENTITY_TYPES.register(FMLJavaModLoadingContext.get().getModEventBus());
+		MENU_TYPES.register(FMLJavaModLoadingContext.get().getModEventBus());
 
 		FMLJavaModLoadingContext.get().getModEventBus().addListener(this::registerConditionSerializers);
 		MinecraftForge.EVENT_BUS.addListener(this::registerCommands);
 		MinecraftForge.EVENT_BUS.addListener(this::addReloadListeners);
+		FMLJavaModLoadingContext.get().getModEventBus().addListener(this::clientSetup);
 	}
 
 	public static ResourceLocation resourceLocation(String path) {
@@ -118,5 +134,11 @@ public class CrowdComputing {
 	}
 
 	private void addReloadListeners(final AddReloadListenerEvent event) {
+	}
+
+	private void clientSetup(final FMLClientSetupEvent event) {
+		event.enqueueWork(() -> {
+			MenuScreens.register(WorksiteBlockMenu.TYPE.get(), WorksiteBlockScreen::new);
+		});
 	}
 }
