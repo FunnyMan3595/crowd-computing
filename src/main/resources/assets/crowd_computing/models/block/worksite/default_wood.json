@@ -1,8 +1,7 @@
 {
-  "parent": "crowd_computing:block/worksite_with_glass",
+  "parent": "crowd_computing:block/worksite",
   "textures": {
     "base": "minecraft:block/oak_planks",
-    "frame": "minecraft:block/oak_log",
-    "glass": "crowd_computing:smaller_glass"
+    "frame": "minecraft:block/oak_log"
   }
 }

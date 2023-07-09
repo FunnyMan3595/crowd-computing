@@ -1,0 +1,19 @@
+{
+  "variants" : {
+    "facing=east" : {
+      "model" : "crowd_computing:block/worksite/default_iron",
+      "y" : 270
+    },
+    "facing=north" : {
+      "model" : "crowd_computing:block/worksite/default_iron",
+      "y" : 180
+    },
+    "facing=south" : {
+      "model" : "crowd_computing:block/worksite/default_iron"
+    },
+    "facing=west" : {
+      "model" : "crowd_computing:block/worksite/default_iron",
+      "y" : 90
+    }
+  }
+}

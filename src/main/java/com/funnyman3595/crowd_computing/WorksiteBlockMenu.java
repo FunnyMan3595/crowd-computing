@@ -30,7 +30,8 @@ public class WorksiteBlockMenu extends AbstractContainerMenu {
 	}
 
 	public int getBlockSlots() {
-		return slot_counts.get(0) + slot_counts.get(1) + slot_counts.get(2) + slot_counts.get(3);
+		return slot_counts.get(WorksiteBlockEntity.UPGRADES_INDEX) + slot_counts.get(WorksiteBlockEntity.INPUTS_INDEX)
+				+ slot_counts.get(WorksiteBlockEntity.TOOLS_INDEX) + slot_counts.get(WorksiteBlockEntity.OUTPUTS_INDEX);
 	}
 
 	public WorksiteBlockMenu(int container_id, Inventory player_inventory, WorksiteBlockEntity worksite,
@@ -49,6 +50,10 @@ public class WorksiteBlockMenu extends AbstractContainerMenu {
 		}
 	}
 
+	public interface SlotMaker<T extends Slot> {
+		T create(Container container, int index, int x, int y);
+	}
+
 	public void updateSlots() {
 		this.slots.clear();
 
@@ -58,25 +63,52 @@ public class WorksiteBlockMenu extends AbstractContainerMenu {
 		} else {
 			container = worksite;
 		}
+		// addSlot(new DynamicSlot(container, i + slot_offset, 62 + i * 18, 17 + 1 *
+		// 18));
 
-		for (int i = 0; i < slot_counts.get(0); i++) {
-			addSlot(new UpgradeSlot(container, i, 62 + i * 18, 17));
+		int slot_offset = 0;
+		makeVariableSlots(container, slot_offset, 1, 3, 8 + 8 * 18, 17,
+				slot_counts.get(WorksiteBlockEntity.UPGRADES_INDEX), UpgradeSlot::new);
+		slot_offset += slot_counts.get(WorksiteBlockEntity.UPGRADES_INDEX);
+
+		if (slot_counts.get(WorksiteBlockEntity.INPUTS_INDEX) == 1) {
+			// Special case because the input slot looks wrong if there's only one and it's on the left.
+			addSlot(new DynamicSlot(container, slot_offset, 8 + 1 * 18, 17 + 1 * 18));
+		} else {
+			makeVariableSlots(container, slot_offset, 2, 3, 8, 17, slot_counts.get(WorksiteBlockEntity.INPUTS_INDEX),
+					DynamicSlot::new);
 		}
-		int slot_offset = slot_counts.get(0);
-		for (int i = 0; i < slot_counts.get(1); i++) {
-			addSlot(new DynamicSlot(container, i + slot_offset, 62 + i * 18, 17 + 1 * 18));
+		slot_offset += slot_counts.get(WorksiteBlockEntity.INPUTS_INDEX);
+
+		if (slot_counts.get(WorksiteBlockEntity.TOOLS_INDEX) >= 1) {
+			addSlot(new ToolSlot(container, slot_offset, 8 + 2 * 18 + 9, 17));
 		}
-		slot_offset += slot_counts.get(1);
-		for (int i = 0; i < slot_counts.get(2); i++) {
-			addSlot(new ToolSlot(container, i + slot_offset, 62 + i * 18, 17 + 2 * 18));
+		if (slot_counts.get(WorksiteBlockEntity.TOOLS_INDEX) >= 2) {
+			addSlot(new ToolSlot(container, slot_offset + 1, 8 + 2 * 18 + 9, 17 + 2 * 18));
 		}
-		slot_offset += slot_counts.get(2);
-		for (int i = 0; i < slot_counts.get(3); i++) {
-			addSlot(new ResultSlot(container, i + slot_offset, 62 + i * 18, 17 + 3 * 18));
-		}
+		slot_offset += slot_counts.get(WorksiteBlockEntity.TOOLS_INDEX);
+
+		makeVariableSlots(container, slot_offset, 3, 3, 8 + 4 * 18, 17,
+				slot_counts.get(WorksiteBlockEntity.OUTPUTS_INDEX), ResultSlot::new);
 
 		addInventorySlots();
 		broadcastChanges();
+	}
+
+	private void makeVariableSlots(Container container, int slot_offset, int cols, int rows, int x, int y, int slots,
+			SlotMaker<? extends Slot> maker) {
+		int min_col_size = slots / cols;
+		int larger_cols = slots % cols;
+		for (int i = 0; i < slots; i++) {
+			int row = i / cols;
+			int col = i % cols;
+			int col_size = min_col_size;
+			if (col < larger_cols) {
+				col_size++;
+			}
+			addSlot(maker.create(container, slot_offset + i, x + col * 18,
+					y + (rows * 18 / 2) - (col_size * 18 / 2) + (row * 18)));
+		}
 	}
 
 	public void addInventorySlots() {

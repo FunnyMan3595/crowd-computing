@@ -1,0 +1,8 @@
+{
+  "parent": "crowd_computing:block/worksite_with_glass",
+  "textures": {
+    "base": "minecraft:block/smooth_stone",
+    "frame": "minecraft:block/stone",
+    "glass": "crowd_computing:smaller_glass"
+  }
+}

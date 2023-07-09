@@ -60,20 +60,9 @@ public class CrowdComputing {
 			if (!Files.isDirectory(WORKSITES_DIR)) {
 				Files.createDirectories(WORKSITES_DIR);
 
-				JsonObject default_worksite = new JsonObject();
-				default_worksite.addProperty("material", "wood");
-				default_worksite.addProperty("upgrade_slot_count", 0);
-				
-				JsonObject default_worksite_builtin = new JsonObject();
-				default_worksite_builtin.addProperty("input_slot_count", 1);
-				default_worksite_builtin.addProperty("tool_slot_count", 1);
-				default_worksite_builtin.addProperty("output_slot_count", 1);
-				default_worksite_builtin.addProperty("stack_size", 1);
-				default_worksite.add("builtin", default_worksite_builtin);
-
-				FileWriter default_worksite_writer = new FileWriter(WORKSITES_DIR.resolve("default_wood.json").toFile());
-				default_worksite_writer.write(GSON.toJson(default_worksite));
-				default_worksite_writer.close();
+				for (DefaultWorksites worksite : DefaultWorksites.ALL) {
+					worksite.writeConfig();
+				}
 			}
 		} catch (IOException e) {
 			throw new RuntimeException("Unable to create config directories.", e);

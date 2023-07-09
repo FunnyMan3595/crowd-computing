@@ -37,11 +37,15 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 
 	public final WorksiteBlock block;
 	public final WorksiteUpgrade builtin;
-	public final int upgrade_slot_count;
 	public NonNullList<ItemStack> upgrades;
 	public NonNullList<ItemStack> input_items;
 	public NonNullList<ItemStack> tool_items;
 	public NonNullList<ItemStack> output_items;
+
+	public static final int UPGRADES_INDEX = 0;
+	public static final int INPUTS_INDEX = 1;
+	public static final int TOOLS_INDEX = 2;
+	public static final int OUTPUTS_INDEX = 3;
 	public ContainerData slot_counts = new SimpleContainerData(4);
 
 	public WorksiteBlockEntity(BlockPos pos, BlockState state) {
@@ -62,15 +66,14 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 				CrowdComputing.LOGGER.error("Failed to load upgrade slot count for " + block.name, e);
 			}
 		}
-		upgrade_slot_count = loaded_upgrade_slot_count;
-		upgrades = NonNullList.withSize(loaded_upgrade_slot_count, ItemStack.EMPTY);
-		slot_counts.set(0, loaded_upgrade_slot_count);
-		input_items = NonNullList.withSize(builtin.input_slot_count(), ItemStack.EMPTY);
-		slot_counts.set(1, builtin.input_slot_count());
-		tool_items = NonNullList.withSize(builtin.tool_slot_count(), ItemStack.EMPTY);
-		slot_counts.set(2, builtin.tool_slot_count());
-		output_items = NonNullList.withSize(builtin.output_slot_count(), ItemStack.EMPTY);
-		slot_counts.set(3, builtin.output_slot_count());
+		slot_counts.set(UPGRADES_INDEX, Math.min(3, loaded_upgrade_slot_count));
+		upgrades = NonNullList.withSize(slot_counts.get(UPGRADES_INDEX), ItemStack.EMPTY);
+		slot_counts.set(INPUTS_INDEX, getInputSlotCount());
+		input_items = NonNullList.withSize(slot_counts.get(INPUTS_INDEX), ItemStack.EMPTY);
+		slot_counts.set(TOOLS_INDEX, builtin.tool_slot_count());
+		tool_items = NonNullList.withSize(slot_counts.get(TOOLS_INDEX), ItemStack.EMPTY);
+		slot_counts.set(OUTPUTS_INDEX, builtin.output_slot_count());
+		output_items = NonNullList.withSize(slot_counts.get(OUTPUTS_INDEX), ItemStack.EMPTY);
 	}
 
 	public int getInputSlotCount() {
@@ -84,7 +87,7 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 				max_input_slot_count = upgrade.input_slot_count();
 			}
 		}
-		return max_input_slot_count;
+		return Math.min(6, max_input_slot_count);
 	}
 
 	public int getToolSlotCount() {
@@ -98,7 +101,7 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 				max_tool_slot_count = upgrade.tool_slot_count();
 			}
 		}
-		return max_tool_slot_count;
+		return Math.min(2, max_tool_slot_count);
 	}
 
 	public int getOutputSlotCount() {
@@ -112,7 +115,7 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 				max_output_slot_count = upgrade.output_slot_count();
 			}
 		}
-		return max_output_slot_count;
+		return Math.min(9, max_output_slot_count);
 	}
 
 	@Override
@@ -132,7 +135,7 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 
 	@Override
 	public int getContainerSize() {
-		return upgrade_slot_count + input_items.size() + tool_items.size() + output_items.size();
+		return upgrades.size() + input_items.size() + tool_items.size() + output_items.size();
 	}
 
 	@Override
@@ -167,33 +170,37 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 		if (input_items.size() != getInputSlotCount()) {
 			resize(input_items, getInputSlotCount());
 		}
-		slot_counts.set(1,  getInputSlotCount());
+		slot_counts.set(INPUTS_INDEX,  getInputSlotCount());
 		if (tool_items.size() != getToolSlotCount()) {
 			resize(tool_items, getToolSlotCount());
 		}
-		slot_counts.set(2, getToolSlotCount());
+		slot_counts.set(TOOLS_INDEX, getToolSlotCount());
 		if (output_items.size() != getOutputSlotCount()) {
 			resize(output_items, getOutputSlotCount());
 		}
-		slot_counts.set(3, getOutputSlotCount());
+		slot_counts.set(OUTPUTS_INDEX, getOutputSlotCount());
 	}
 
 	public Pair<List<ItemStack>, Integer> getSlot(int slot) {
 		if (slot < 0 || slot >= getContainerSize()) {
 			return null;
 		}
-		if (slot < upgrade_slot_count) {
+		
+		if (slot < slot_counts.get(UPGRADES_INDEX)) {
 			return Pair.of(upgrades, slot);
 		}
-		slot -= upgrade_slot_count;
-		if (slot < getInputSlotCount()) {
+		slot -= slot_counts.get(UPGRADES_INDEX);
+		
+		if (slot < slot_counts.get(INPUTS_INDEX)) {
 			return Pair.of(input_items, slot);
 		}
-		slot -= getInputSlotCount();
-		if (slot < getToolSlotCount()) {
+		slot -= slot_counts.get(INPUTS_INDEX);
+		
+		if (slot < slot_counts.get(TOOLS_INDEX)) {
 			return Pair.of(tool_items, slot);
 		}
-		slot -= getToolSlotCount();
+		slot -= slot_counts.get(TOOLS_INDEX);
+		
 		return Pair.of(output_items, slot);
 	}
 
