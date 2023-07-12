@@ -25,16 +25,27 @@ public class WorksiteBlockMenu extends AbstractContainerMenu {
 	public final WorksiteBlockEntity worksite;
 	public final Inventory player_inventory;
 	public Container client_cache = new SimpleContainer(1000);
-	public final ContainerData slot_counts;
+	public final ContainerData worksite_data;
 	private boolean lock_cache = false;
 
 	public WorksiteBlockMenu(int container_id, Inventory inventory) {
-		this(container_id, inventory, null, new SimpleContainerData(4));
+		this(container_id, inventory, null, new SimpleContainerData(12));
+	}
+
+	public int getProgress() {
+		if (worksite_data.get(WorksiteBlockEntity.PROCESS_DURATION_INDEX) <= 0) {
+			return 0;
+		}
+
+		return (int) (24 * Math.min(1, Math.max(0, worksite_data.get(WorksiteBlockEntity.PROCESS_ELAPSED_INDEX)
+				/ (double) worksite_data.get(WorksiteBlockEntity.PROCESS_DURATION_INDEX))));
 	}
 
 	public int getBlockSlots() {
-		return slot_counts.get(WorksiteBlockEntity.UPGRADES_INDEX) + slot_counts.get(WorksiteBlockEntity.INPUTS_INDEX)
-				+ slot_counts.get(WorksiteBlockEntity.TOOLS_INDEX) + slot_counts.get(WorksiteBlockEntity.OUTPUTS_INDEX);
+		return worksite_data.get(WorksiteBlockEntity.UPGRADE_SLOTS_INDEX)
+				+ worksite_data.get(WorksiteBlockEntity.INPUT_SLOTS_INDEX)
+				+ worksite_data.get(WorksiteBlockEntity.TOOL_SLOTS_INDEX)
+				+ worksite_data.get(WorksiteBlockEntity.OUTPUT_SLOTS_INDEX);
 	}
 
 	public WorksiteBlockMenu(int container_id, Inventory player_inventory, WorksiteBlockEntity worksite,
@@ -42,7 +53,7 @@ public class WorksiteBlockMenu extends AbstractContainerMenu {
 		super(WorksiteBlockMenu.TYPE.get(), container_id);
 		this.worksite = worksite;
 		this.player_inventory = player_inventory;
-		this.slot_counts = slot_counts;
+		this.worksite_data = slot_counts;
 		addDataSlots(slot_counts);
 
 		if (worksite != null) {
@@ -66,34 +77,32 @@ public class WorksiteBlockMenu extends AbstractContainerMenu {
 		} else {
 			container = worksite;
 		}
-		// addSlot(new DynamicSlot(container, i + slot_offset, 62 + i * 18, 17 + 1 *
-		// 18));
 
 		int slot_offset = 0;
 		makeVariableSlots(container, slot_offset, 1, 3, 8 + 8 * 18, 17,
-				slot_counts.get(WorksiteBlockEntity.UPGRADES_INDEX), UpgradeSlot::new);
-		slot_offset += slot_counts.get(WorksiteBlockEntity.UPGRADES_INDEX);
+				worksite_data.get(WorksiteBlockEntity.UPGRADE_SLOTS_INDEX), UpgradeSlot::new);
+		slot_offset += worksite_data.get(WorksiteBlockEntity.UPGRADE_SLOTS_INDEX);
 
-		if (slot_counts.get(WorksiteBlockEntity.INPUTS_INDEX) == 1) {
+		if (worksite_data.get(WorksiteBlockEntity.INPUT_SLOTS_INDEX) == 1) {
 			// Special case because the input slot looks wrong if there's only one and it's
 			// on the left.
 			addSlot(new DynamicSlot(container, slot_offset, 8 + 1 * 18, 17 + 1 * 18));
 		} else {
-			makeVariableSlots(container, slot_offset, 2, 3, 8, 17, slot_counts.get(WorksiteBlockEntity.INPUTS_INDEX),
-					DynamicSlot::new);
+			makeVariableSlots(container, slot_offset, 2, 3, 8, 17,
+					worksite_data.get(WorksiteBlockEntity.INPUT_SLOTS_INDEX), DynamicSlot::new);
 		}
-		slot_offset += slot_counts.get(WorksiteBlockEntity.INPUTS_INDEX);
+		slot_offset += worksite_data.get(WorksiteBlockEntity.INPUT_SLOTS_INDEX);
 
-		if (slot_counts.get(WorksiteBlockEntity.TOOLS_INDEX) >= 1) {
+		if (worksite_data.get(WorksiteBlockEntity.TOOL_SLOTS_INDEX) >= 1) {
 			addSlot(new ToolSlot(container, slot_offset, 8 + 2 * 18 + 9, 17));
 		}
-		if (slot_counts.get(WorksiteBlockEntity.TOOLS_INDEX) >= 2) {
+		if (worksite_data.get(WorksiteBlockEntity.TOOL_SLOTS_INDEX) >= 2) {
 			addSlot(new ToolSlot(container, slot_offset + 1, 8 + 2 * 18 + 9, 17 + 2 * 18));
 		}
-		slot_offset += slot_counts.get(WorksiteBlockEntity.TOOLS_INDEX);
+		slot_offset += worksite_data.get(WorksiteBlockEntity.TOOL_SLOTS_INDEX);
 
 		makeVariableSlots(container, slot_offset, 3, 3, 8 + 4 * 18, 17,
-				slot_counts.get(WorksiteBlockEntity.OUTPUTS_INDEX), ResultSlot::new);
+				worksite_data.get(WorksiteBlockEntity.OUTPUT_SLOTS_INDEX), ResultSlot::new);
 
 		addInventorySlots();
 	}
@@ -128,34 +137,48 @@ public class WorksiteBlockMenu extends AbstractContainerMenu {
 
 	@Override
 	public ItemStack quickMoveStack(Player player, int slot_index) {
+		int old_block_slots = getBlockSlots();
+		ItemStack old_stack = slots.get(slot_index).getItem().copy();
+		ItemStack result = quickMoveStack_internal(player, slot_index);
+		if (getBlockSlots() != old_block_slots) {
+			int new_slot_index = slot_index - old_block_slots + getBlockSlots();
+			CrowdComputing.LOGGER.info("Marking quick move source slot " + new_slot_index + " as changed.");
+			setRemoteSlot(new_slot_index, old_stack);
+			slots.get(new_slot_index).setChanged();
+		}
+		return result;
+	}
+	
+	public ItemStack quickMoveStack_internal(Player player, int slot_index) {
 		if (worksite != null) {
-			ItemStack leftovers = ItemStack.EMPTY;
+			ItemStack original_stack = ItemStack.EMPTY;
 			Slot slot = slots.get(slot_index);
 			if (slot != null && slot.hasItem()) {
 				ItemStack slot_stack = slot.getItem();
-				leftovers = slot_stack.copy();
+				original_stack = slot_stack.copy();
+				int block_slots = getBlockSlots();
 				if (slot_index < getBlockSlots()) {
-					if (!this.moveItemStackTo(slot_stack, getBlockSlots(), getBlockSlots() + 9 * 4, true)) {
+					if (!this.moveItemStackTo(slot_stack, block_slots, block_slots + 9 * 4, true)) {
 						return ItemStack.EMPTY;
 					}
-				} else if (!this.moveItemStackTo(slot_stack, 0, getBlockSlots(), false)) {
+				} else if (!this.moveItemStackTo(slot_stack, 0, block_slots, false)) {
 					return ItemStack.EMPTY;
 				}
 
+				CrowdComputing.LOGGER.info("Quick move source slot " + slot_index + " is now " + slot_stack);
 				if (slot_stack.isEmpty()) {
 					slot.set(ItemStack.EMPTY);
 				} else {
 					slot.setChanged();
 				}
 
-				if (slot_stack.getCount() == leftovers.getCount()) {
+				if (slot_stack.getCount() == original_stack.getCount()) {
 					return ItemStack.EMPTY;
 				}
 
 				slot.onTake(player, slot_stack);
 			}
-
-			return leftovers;
+			return original_stack;
 		}
 		return ItemStack.EMPTY;
 	}
@@ -178,14 +201,23 @@ public class WorksiteBlockMenu extends AbstractContainerMenu {
 
 	@Override
 	public void setData(int index, int value) {
-		CrowdComputing.LOGGER.error((worksite == null ? "CLIENT" : "SERVER") + "Setting data index=" + index);
-
+		int old_value = worksite_data.get(index);
+		if (index < 10 && old_value != value) {
+		CrowdComputing.LOGGER.info("Data " + index + " updating from " + old_value + " to " + value);
+		}
+		if (old_value == value) {
+			return;
+		}
 		Container old_cache = client_cache;
-		if (!lock_cache) {
+		if (!lock_cache && index < 10) {
 			client_cache = new SimpleContainer(1000);
 		}
-		int old_value = slot_counts.get(index);
 		super.setData(index, value);
+		
+		if (index >= 10) {
+			return;
+		}
+		
 		updateSlots();
 
 		if (lock_cache) {
@@ -194,10 +226,10 @@ public class WorksiteBlockMenu extends AbstractContainerMenu {
 
 		int offset = 0;
 		for (int i = 0; i < index; i++) {
-			for (int slot = 0; slot < slot_counts.get(i); slot++) {
+			for (int slot = 0; slot < worksite_data.get(i); slot++) {
 				client_cache.setItem(offset + slot, old_cache.getItem(offset + slot));
 			}
-			offset += slot_counts.get(i);
+			offset += worksite_data.get(i);
 		}
 		for (int slot = 0; slot < Math.min(old_value, value); slot++) {
 			client_cache.setItem(offset + slot, old_cache.getItem(offset + slot));
@@ -205,17 +237,17 @@ public class WorksiteBlockMenu extends AbstractContainerMenu {
 		int old_offset = offset + old_value;
 		offset += value;
 		for (int i = index + 1; i < 4; i++) {
-			for (int slot = 0; slot < slot_counts.get(i); slot++) {
+			for (int slot = 0; slot < worksite_data.get(i); slot++) {
 				client_cache.setItem(offset + slot, old_cache.getItem(old_offset + slot));
 			}
-			old_offset += slot_counts.get(i);
-			offset += slot_counts.get(i);
+			old_offset += worksite_data.get(i);
+			offset += worksite_data.get(i);
 		}
 	}
 
 	@Override
 	public void setItem(int slot, int state_id, ItemStack value) {
-		CrowdComputing.LOGGER.error((worksite == null ? "CLIENT" : "SERVER") + "Setting slot=" + slot);
+		CrowdComputing.LOGGER.info("Slot " + slot + " updating from " + getSlot(slot).getItem() + " to " + value);
 		lock_cache = false;
 		super.setItem(slot, state_id, value);
 	};
@@ -225,21 +257,42 @@ public class WorksiteBlockMenu extends AbstractContainerMenu {
 		ContainerSynchronizer synchronizer = ObfuscationReflectionHelper.getPrivateValue(AbstractContainerMenu.class,
 				this, "synchronizer");
 		if (synchronizer != null) {
-			synchronizer.sendDataChange(this, 0, slot_counts.get(0));
-			synchronizer.sendDataChange(this, 1, slot_counts.get(1));
-			synchronizer.sendDataChange(this, 2, slot_counts.get(2));
-			synchronizer.sendDataChange(this, 3, slot_counts.get(3));
+			synchronizer.sendDataChange(this, 0, worksite_data.get(0));
+			synchronizer.sendDataChange(this, 1, worksite_data.get(1));
+			synchronizer.sendDataChange(this, 2, worksite_data.get(2));
+			synchronizer.sendDataChange(this, 3, worksite_data.get(3));
 		}
 		updateSlots();
 		super.broadcastChanges();
 	}
 
 	@Override
+	public void broadcastFullState() {
+		ContainerSynchronizer synchronizer = ObfuscationReflectionHelper.getPrivateValue(AbstractContainerMenu.class,
+				this, "synchronizer");
+		if (synchronizer != null) {
+			synchronizer.sendDataChange(this, 0, worksite_data.get(0));
+			synchronizer.sendDataChange(this, 1, worksite_data.get(1));
+			synchronizer.sendDataChange(this, 2, worksite_data.get(2));
+			synchronizer.sendDataChange(this, 3, worksite_data.get(3));
+		}
+		updateSlots();
+		super.broadcastFullState();
+	}
+	
+	@Override
+	public void sendAllDataToRemote() {
+		CrowdComputing.LOGGER.info("Sending " + slots.size() + " inventory slots.");
+		super.sendAllDataToRemote();
+	}
+
+	@Override
 	public void initializeContents(int stateId, List<ItemStack> items, ItemStack carried) {
-		CrowdComputing.LOGGER
-				.error((worksite == null ? "CLIENT" : "SERVER") + "Contents init with len: " + items.size());
 		super.initializeContents(stateId, new ArrayList<ItemStack>(), carried);
 		for (int i = 0; i < items.size(); i++) {
+			if (client_cache.getItem(i) != items.get(i)) {
+				CrowdComputing.LOGGER.info("Initializing slot " + i + " from " + client_cache.getItem(i) + " to " + items.get(i));
+			}
 			client_cache.setItem(i, items.get(i));
 		}
 		lock_cache = true;

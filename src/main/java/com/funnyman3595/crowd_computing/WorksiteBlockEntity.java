@@ -22,10 +22,10 @@ import net.minecraft.world.entity.player.StackedContents;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.inventory.RecipeHolder;
-import net.minecraft.world.inventory.SimpleContainerData;
 import net.minecraft.world.inventory.StackedContentsCompatible;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BaseContainerBlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
@@ -41,12 +41,56 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 	public NonNullList<ItemStack> input_items;
 	public NonNullList<ItemStack> tool_items;
 	public NonNullList<ItemStack> output_items;
+	public int process_elapsed = 0;
+	public int process_duration = 0;
 
-	public static final int UPGRADES_INDEX = 0;
-	public static final int INPUTS_INDEX = 1;
-	public static final int TOOLS_INDEX = 2;
-	public static final int OUTPUTS_INDEX = 3;
-	public ContainerData slot_counts = new SimpleContainerData(4);
+	public static final int UPGRADE_SLOTS_INDEX = 0;
+	public static final int INPUT_SLOTS_INDEX = 1;
+	public static final int TOOL_SLOTS_INDEX = 2;
+	public static final int OUTPUT_SLOTS_INDEX = 3;
+	public static final int PROCESS_ELAPSED_INDEX = 10;
+	public static final int PROCESS_DURATION_INDEX = 11;
+	public ContainerData worksite_data = new ContainerData() {
+		@Override
+		public int get(int index) {
+			switch (index) {
+			case UPGRADE_SLOTS_INDEX:
+				return upgrades.size();
+			case INPUT_SLOTS_INDEX:
+				return input_items.size();
+			case TOOL_SLOTS_INDEX:
+				return tool_items.size();
+			case OUTPUT_SLOTS_INDEX:
+				return output_items.size();
+			case PROCESS_ELAPSED_INDEX:
+				return process_elapsed;
+			case PROCESS_DURATION_INDEX:
+				return process_duration;
+			default:
+				return 0;
+			}
+		}
+
+		@Override
+		public void set(int index, int value) {
+			if (index < 10) {
+				recalcSlots();
+			}
+			switch (index) {
+			case PROCESS_ELAPSED_INDEX:
+				process_elapsed = value;
+				break;
+			case PROCESS_DURATION_INDEX:
+				process_duration = value;
+				break;
+			}
+		}
+
+		@Override
+		public int getCount() {
+			return 12;
+		}
+	};
 
 	public WorksiteBlockEntity(BlockPos pos, BlockState state) {
 		super(block_entities.get(((WorksiteBlock) state.getBlock()).name).get(), pos, state);
@@ -66,14 +110,10 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 				CrowdComputing.LOGGER.error("Failed to load upgrade slot count for " + block.name, e);
 			}
 		}
-		slot_counts.set(UPGRADES_INDEX, Math.min(3, loaded_upgrade_slot_count));
-		upgrades = NonNullList.withSize(slot_counts.get(UPGRADES_INDEX), ItemStack.EMPTY);
-		slot_counts.set(INPUTS_INDEX, getInputSlotCount());
-		input_items = NonNullList.withSize(slot_counts.get(INPUTS_INDEX), ItemStack.EMPTY);
-		slot_counts.set(TOOLS_INDEX, builtin.tool_slot_count());
-		tool_items = NonNullList.withSize(slot_counts.get(TOOLS_INDEX), ItemStack.EMPTY);
-		slot_counts.set(OUTPUTS_INDEX, builtin.output_slot_count());
-		output_items = NonNullList.withSize(slot_counts.get(OUTPUTS_INDEX), ItemStack.EMPTY);
+		upgrades = NonNullList.withSize(Math.min(3, loaded_upgrade_slot_count), ItemStack.EMPTY);
+		input_items = NonNullList.withSize(builtin.input_slot_count(), ItemStack.EMPTY);
+		tool_items = NonNullList.withSize(builtin.tool_slot_count(), ItemStack.EMPTY);
+		output_items = NonNullList.withSize(builtin.output_slot_count(), ItemStack.EMPTY);
 	}
 
 	public int getInputSlotCount() {
@@ -148,7 +188,10 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 		return true;
 	}
 
-	public NonNullList<ItemStack> resize(NonNullList<ItemStack> list, int size) {
+	public NonNullList<ItemStack> consider_resize(NonNullList<ItemStack> list, int size) {
+		if (list.size() == size) {
+			return list;
+		}
 		NonNullList<ItemStack> new_list = NonNullList.withSize(size, ItemStack.EMPTY);
 		for (int i = 0; i < list.size(); i++) {
 			ItemStack stack = list.get(i);
@@ -168,18 +211,9 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 	}
 
 	public void recalcSlots() {
-		if (input_items.size() != getInputSlotCount()) {
-			input_items = resize(input_items, getInputSlotCount());
-		}
-		slot_counts.set(INPUTS_INDEX, getInputSlotCount());
-		if (tool_items.size() != getToolSlotCount()) {
-			tool_items = resize(tool_items, getToolSlotCount());
-		}
-		slot_counts.set(TOOLS_INDEX, getToolSlotCount());
-		if (output_items.size() != getOutputSlotCount()) {
-			output_items = resize(output_items, getOutputSlotCount());
-		}
-		slot_counts.set(OUTPUTS_INDEX, getOutputSlotCount());
+		input_items = consider_resize(input_items, getInputSlotCount());
+		tool_items = consider_resize(tool_items, getToolSlotCount());
+		output_items = consider_resize(output_items, getOutputSlotCount());
 	}
 
 	public Pair<List<ItemStack>, Integer> getSlot(int slot) {
@@ -187,20 +221,20 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 			return null;
 		}
 
-		if (slot < slot_counts.get(UPGRADES_INDEX)) {
+		if (slot < worksite_data.get(UPGRADE_SLOTS_INDEX)) {
 			return Pair.of(upgrades, slot);
 		}
-		slot -= slot_counts.get(UPGRADES_INDEX);
+		slot -= worksite_data.get(UPGRADE_SLOTS_INDEX);
 
-		if (slot < slot_counts.get(INPUTS_INDEX)) {
+		if (slot < worksite_data.get(INPUT_SLOTS_INDEX)) {
 			return Pair.of(input_items, slot);
 		}
-		slot -= slot_counts.get(INPUTS_INDEX);
+		slot -= worksite_data.get(INPUT_SLOTS_INDEX);
 
-		if (slot < slot_counts.get(TOOLS_INDEX)) {
+		if (slot < worksite_data.get(TOOL_SLOTS_INDEX)) {
 			return Pair.of(tool_items, slot);
 		}
-		slot -= slot_counts.get(TOOLS_INDEX);
+		slot -= worksite_data.get(TOOL_SLOTS_INDEX);
 
 		return Pair.of(output_items, slot);
 	}
@@ -331,7 +365,7 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 
 	@Override
 	protected AbstractContainerMenu createMenu(int container_id, Inventory inventory) {
-		return new WorksiteBlockMenu(container_id, inventory, this, slot_counts);
+		return new WorksiteBlockMenu(container_id, inventory, this, worksite_data);
 	}
 
 	public ItemStack getIdentity() {
@@ -354,6 +388,11 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 			drops.add(stack);
 		}
 		return drops;
+	}
+
+	public static void serverTick(Level level, BlockPos pos, BlockState state, WorksiteBlockEntity entity) {
+		entity.process_duration = 200;
+		entity.process_elapsed = (entity.process_elapsed + 1) % 200;
 	}
 
 	@Override

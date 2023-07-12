@@ -20,6 +20,8 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
@@ -41,18 +43,19 @@ public class WorksiteBlock extends HorizontalDirectionalBlock implements EntityB
 		this.name = name;
 		this.config = config;
 	}
-	
+
 	@Override
-	public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult result) {
+	public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand,
+			BlockHitResult result) {
 		if (level.isClientSide()) {
 			return InteractionResult.SUCCESS;
 		}
-		
+
 		BlockEntity entity = level.getBlockEntity(pos);
 		if (entity instanceof WorksiteBlockEntity) {
 			player.openMenu((WorksiteBlockEntity) entity);
 		}
-		
+
 		return InteractionResult.CONSUME;
 	}
 
@@ -93,5 +96,22 @@ public class WorksiteBlock extends HorizontalDirectionalBlock implements EntityB
 
 	private static boolean never(BlockState state, BlockGetter getter, BlockPos pos, EntityType<?> type) {
 		return false;
+	}
+
+	@SuppressWarnings("unchecked")
+	protected static <E extends BlockEntity, A extends BlockEntity> BlockEntityTicker<A> createTickerHelper(
+			BlockEntityType<A> actual_type, BlockEntityType<E> expected_type,
+			BlockEntityTicker<? super E> tick_method) {
+		return expected_type == actual_type ? (BlockEntityTicker<A>) tick_method : null;
+	}
+
+	@Override
+	public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state,
+			BlockEntityType<T> type) {
+		if (!level.isClientSide() && type == WorksiteBlockEntity.block_entities.get(name).get()) {
+			return createTickerHelper(type, WorksiteBlockEntity.block_entities.get(name).get(),
+					WorksiteBlockEntity::serverTick);
+		}
+		return null;
 	}
 }
