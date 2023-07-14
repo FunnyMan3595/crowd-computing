@@ -8,11 +8,13 @@ import org.apache.commons.lang3.tuple.Pair;
 
 import com.google.gson.JsonObject;
 
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.NonNullList;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.ContainerHelper;
 import net.minecraft.world.WorldlyContainer;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -21,10 +23,8 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.player.StackedContents;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerData;
-import net.minecraft.world.inventory.RecipeHolder;
 import net.minecraft.world.inventory.StackedContentsCompatible;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BaseContainerBlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -32,7 +32,8 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.registries.RegistryObject;
 
 public class WorksiteBlockEntity extends BaseContainerBlockEntity
-		implements WorldlyContainer, RecipeHolder, StackedContentsCompatible {
+		implements WorldlyContainer, StackedContentsCompatible {
+	public static final int MAX_STORED_BLOCKAGE = 10;
 	public static HashMap<String, RegistryObject<BlockEntityType<WorksiteBlockEntity>>> block_entities = new HashMap<String, RegistryObject<BlockEntityType<WorksiteBlockEntity>>>();
 
 	public final WorksiteBlock block;
@@ -43,6 +44,10 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 	public NonNullList<ItemStack> output_items;
 	public int process_elapsed = 0;
 	public int process_duration = 0;
+
+	public boolean inventory_dirty = true;
+	public WorksiteRecipe current_recipe = null;
+	public ObjectArrayList<ItemStack> output_blockage = null;
 
 	public static final int UPGRADE_SLOTS_INDEX = 0;
 	public static final int INPUT_SLOTS_INDEX = 1;
@@ -297,6 +302,7 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 		}
 
 		setChanged();
+		inventory_dirty = true;
 	}
 
 	@Override
@@ -334,15 +340,6 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 	}
 
 	@Override
-	public void setRecipeUsed(Recipe<?> p_40134_) {
-	}
-
-	@Override
-	public Recipe<?> getRecipeUsed() {
-		return null;
-	}
-
-	@Override
 	public int[] getSlotsForFace(Direction p_19238_) {
 		int[] nothing = {};
 		return nothing;
@@ -360,7 +357,7 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 
 	@Override
 	protected Component getDefaultName() {
-		return Component.literal("Worksite");
+		return block.getName();
 	}
 
 	@Override
@@ -391,8 +388,89 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 	}
 
 	public static void serverTick(Level level, BlockPos pos, BlockState state, WorksiteBlockEntity entity) {
-		entity.process_duration = 200;
-		entity.process_elapsed = (entity.process_elapsed + 1) % 200;
+		if (entity.current_recipe != null) {
+			entity.process_elapsed += 1;
+			if (entity.process_elapsed >= entity.process_duration) {
+				entity.output_blockage = entity.current_recipe.outputs.roll_output(level.random);
+				entity.current_recipe = null;
+				entity.inventory_dirty = true;
+			} else {
+				return;
+			}
+		}
+
+		if (!entity.inventory_dirty) {
+			return;
+		}
+
+		if (!entity.tryClearBlockage()) {
+			entity.inventory_dirty = false;
+			return;
+		}
+
+		entity.process_elapsed = 0;
+
+		for (WorksiteRecipe recipe : WorksiteRecipe.RECIPIES.get(level)) {
+			if (recipe.matches(entity, level)) {
+				entity.consumeAllInputs(recipe.ingredients);
+				entity.damageAllTools(recipe.tools);
+				entity.current_recipe = recipe;
+				entity.process_duration = 0;
+				for (WorksiteRecipe.Stage stage : recipe.stages) {
+					entity.process_duration += stage.duration();
+				}
+				return;
+			}
+		}
+
+		entity.inventory_dirty = false;
+	}
+
+	private boolean tryClearBlockage() {
+		if (output_blockage == null) {
+			return true;
+		}
+
+		int max_stack_size = getMaxStackSize();
+
+		boolean any_left = false;
+		for (ItemStack source_stack : output_blockage) {
+			if (source_stack.isEmpty()) {
+				continue;
+			}
+
+			for (int i = 0; i < output_items.size(); i++) {
+				ItemStack target_stack = output_items.get(i);
+				if (target_stack.isEmpty()) {
+					output_items.set(i, source_stack.copy());
+					source_stack.setCount(0);
+					break;
+				}
+
+				if (max_stack_size > 1 && target_stack.getCount() < max_stack_size && source_stack.isStackable()
+						&& ItemStack.isSameItemSameTags(source_stack, target_stack)) {
+					if (source_stack.getCount() + target_stack.getCount() <= max_stack_size) {
+						target_stack.setCount(source_stack.getCount() + target_stack.getCount());
+						source_stack.setCount(0);
+						break;
+					} else {
+						source_stack.setCount(source_stack.getCount() + target_stack.getCount() - max_stack_size);
+						target_stack.setCount(0);
+					}
+				}
+			}
+
+			if (!source_stack.isEmpty()) {
+				any_left = true;
+			}
+		}
+
+		if (any_left) {
+			return false;
+		}
+
+		output_blockage = null;
+		return true;
 	}
 
 	@Override
@@ -404,6 +482,46 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 		ContainerHelper.loadAllItems(tag.getCompound("input_items"), input_items);
 		ContainerHelper.loadAllItems(tag.getCompound("tool_items"), tool_items);
 		ContainerHelper.loadAllItems(tag.getCompound("output_items"), output_items);
+
+		if (tag.contains("recipe_info")) {
+			CompoundTag recipe_info = tag.getCompound("recipe_info");
+			process_elapsed = recipe_info.getInt("elapsed");
+			process_duration = recipe_info.getInt("duration");
+			inventory_dirty = true;
+			
+			if (recipe_info.contains("recipe_id")) {
+				try {
+					current_recipe = (WorksiteRecipe) level.getRecipeManager()
+							.byKey(new ResourceLocation(recipe_info.getString("recipe_id"))).get();
+				} catch (Exception e) {
+					CrowdComputing.LOGGER.error("Unable to load recipe: ", e);
+				}
+			} else {
+				current_recipe = null;
+			}
+			
+			if (recipe_info.contains("blockage")) {
+				NonNullList<ItemStack> blockage_temp = NonNullList.withSize(MAX_STORED_BLOCKAGE, ItemStack.EMPTY);
+				ContainerHelper.loadAllItems(recipe_info.getCompound("blockage"), blockage_temp);
+				output_blockage = new ObjectArrayList<ItemStack>();
+				for (ItemStack stack : blockage_temp) {
+					if (!stack.isEmpty()) {
+						output_blockage.add(stack);
+					}
+				}
+				if (output_blockage.size() == 0) {
+					output_blockage = null;
+				}
+			} else {
+				output_blockage = null;
+			}
+		} else {
+			process_elapsed = 0;
+			process_duration = 0;
+			inventory_dirty = true;
+			current_recipe = null;
+			output_blockage = null;
+		}
 	}
 
 	@Override
@@ -425,5 +543,154 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 		CompoundTag output_items_tag = new CompoundTag();
 		ContainerHelper.saveAllItems(output_items_tag, output_items);
 		tag.put("output_items", output_items_tag);
+
+		if (current_recipe != null || output_blockage != null) {
+			CompoundTag recipe_info = new CompoundTag();
+			recipe_info.putInt("elapsed", process_elapsed);
+			recipe_info.putInt("duration", process_duration);
+			
+			if (current_recipe != null) {
+				recipe_info.putString("recipe_id", current_recipe.id.toString());
+			}
+			
+			if (output_blockage != null) {
+				CompoundTag output_blockage_tag = new CompoundTag();
+				NonNullList<ItemStack> blockage_temp = NonNullList.withSize(MAX_STORED_BLOCKAGE, ItemStack.EMPTY);
+				for (int i=0; i<Math.min(MAX_STORED_BLOCKAGE, output_blockage.size()); i++) {
+					blockage_temp.set(i, output_blockage.get(i));
+				}
+				ContainerHelper.saveAllItems(output_blockage_tag, blockage_temp);
+				recipe_info.put("recipe_info", output_blockage_tag);
+			}
+		}
+	}
+
+	public boolean hasAllInputs(WorksiteRecipe.CountableIngredient[] ingredients) {
+		int[] needed = new int[ingredients.length];
+		for (int j = 0; j < ingredients.length; j++) {
+			needed[j] = ingredients[j].count();
+		}
+		for (int i = 0; i < input_items.size(); i++) {
+			ItemStack stack = input_items.get(i);
+			int left = stack.getCount();
+			for (int j = 0; left > 0 && j < ingredients.length; j++) {
+				if (needed[j] <= 0) {
+					continue;
+				}
+				if (ingredients[j].ingredient().test(stack)) {
+					if (left > needed[j]) {
+						left -= needed[j];
+						needed[j] = 0;
+					} else {
+						needed[j] -= left;
+						left = 0;
+					}
+				}
+			}
+		}
+
+		for (int j = 0; j < ingredients.length; j++) {
+			if (needed[j] > 0) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	public void consumeAllInputs(WorksiteRecipe.CountableIngredient[] ingredients) {
+		int[] needed = new int[ingredients.length];
+		for (int j = 0; j < ingredients.length; j++) {
+			needed[j] = ingredients[j].count();
+		}
+		for (int i = 0; i < input_items.size(); i++) {
+			ItemStack stack = input_items.get(i);
+			for (int j = 0; stack.getCount() > 0 && j < ingredients.length; j++) {
+				if (needed[j] <= 0) {
+					continue;
+				}
+				if (ingredients[j].ingredient().test(stack)) {
+					if (stack.getCount() > needed[j]) {
+						stack.setCount(stack.getCount() - needed[j]);
+						needed[j] = 0;
+					} else {
+						needed[j] -= stack.getCount();
+						stack.setCount(0);
+						input_items.set(i, ItemStack.EMPTY);
+					}
+				}
+			}
+		}
+	}
+
+	public boolean hasAllTools(WorksiteRecipe.CountableIngredient[] tools) {
+		int[] needed = new int[tools.length];
+		for (int j = 0; j < tools.length; j++) {
+			needed[j] = tools[j].count();
+		}
+		for (int i = 0; i < tool_items.size(); i++) {
+			ItemStack stack = tool_items.get(i);
+			int left = stack.getCount();
+			for (int j = 0; left > 0 && j < tools.length; j++) {
+				if (needed[j] <= 0) {
+					continue;
+				}
+				if (tools[j].ingredient().test(stack)) {
+					if (left > needed[j]) {
+						left -= needed[j];
+						needed[j] = 0;
+					} else {
+						needed[j] -= left;
+						left = 0;
+					}
+				}
+			}
+		}
+
+		for (int j = 0; j < tools.length; j++) {
+			if (needed[j] > 0) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	private void damageAndBreak(ItemStack stack, int amount) {
+		boolean broke = stack.hurt(amount, level.random, null);
+		if (broke) {
+			stack.shrink(1);
+			stack.setDamageValue(0);
+		}
+	}
+
+	public boolean damageAllTools(WorksiteRecipe.CountableIngredient[] tools) {
+		int[] needed = new int[tools.length];
+		for (int j = 0; j < tools.length; j++) {
+			needed[j] = tools[j].count();
+		}
+		for (int i = 0; i < tool_items.size(); i++) {
+			ItemStack stack = tool_items.get(i);
+			int left = stack.getCount();
+			for (int j = 0; left > 0 && j < tools.length; j++) {
+				if (needed[j] <= 0) {
+					continue;
+				}
+				if (tools[j].ingredient().test(stack)) {
+					if (left > needed[j]) {
+						damageAndBreak(stack, needed[j]);
+						needed[j] = 0;
+					} else {
+						damageAndBreak(stack, left);
+						left = 0;
+					}
+				}
+			}
+		}
+
+		for (int j = 0; j < tools.length; j++) {
+			if (needed[j] > 0) {
+				return false;
+			}
+		}
+		return true;
 	}
 }

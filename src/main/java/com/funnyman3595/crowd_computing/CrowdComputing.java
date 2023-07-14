@@ -14,10 +14,13 @@ import net.minecraftforge.common.crafting.CraftingHelper;
 import net.minecraftforge.event.AddReloadListenerEvent;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraft.client.gui.screens.MenuScreens;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.crafting.RecipeSerializer;
+import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraftforge.fml.ModLoadingContext;
@@ -41,7 +44,9 @@ public class CrowdComputing {
 	// Directly reference a slf4j logger
 	public static final Logger LOGGER = LogUtils.getLogger();
 	public static final Gson GSON = new GsonBuilder()
-			.registerTypeAdapter(ResourceLocation.class, new ResourceLocation.Serializer()).create();
+			.registerTypeAdapter(ResourceLocation.class, new ResourceLocation.Serializer())
+			.registerTypeAdapter(WorksiteRecipe.Outputs.class, new WorksiteRecipe.Outputs.Serializer())
+			.registerTypeAdapter(Component.class, new Component.Serializer()).create();
 
 	public static final Path CONFIG_SUBDIR = FMLPaths.CONFIGDIR.get().resolve(MODID);
 	public static final Path WORKSITES_DIR = CONFIG_SUBDIR.resolve("worksites");
@@ -51,7 +56,12 @@ public class CrowdComputing {
 	public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, MODID);
 	public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITY_TYPES = DeferredRegister
 			.create(ForgeRegistries.BLOCK_ENTITY_TYPES, MODID);
-	public static final DeferredRegister<MenuType<?>> MENU_TYPES = DeferredRegister.create(ForgeRegistries.MENU_TYPES, MODID);
+	public static final DeferredRegister<MenuType<?>> MENU_TYPES = DeferredRegister.create(ForgeRegistries.MENU_TYPES,
+			MODID);
+	public static final DeferredRegister<RecipeType<?>> RECIPE_TYPES = DeferredRegister
+			.create(ForgeRegistries.RECIPE_TYPES, MODID);
+	public static final DeferredRegister<RecipeSerializer<?>> RECIPE_SERIALIZERS = DeferredRegister
+			.create(ForgeRegistries.RECIPE_SERIALIZERS, MODID);
 
 	public CrowdComputing() {
 		ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, Config.COMMON.getRight());
@@ -112,19 +122,26 @@ public class CrowdComputing {
 					LOGGER.error("Unable to load worksite upgrade file " + path, e);
 					return;
 				}
-				WorksiteUpgrade.items.put(name, ITEMS.register(name,
-						() -> new WorksiteUpgradeItem(WorksiteUpgrade.load(name, tree))));
+				WorksiteUpgrade.items.put(name,
+						ITEMS.register(name, () -> new WorksiteUpgradeItem(WorksiteUpgrade.load(name, tree))));
 			});
 		} catch (Exception e) {
 			throw new RuntimeException("Unable to read worksite upgrades directory.", e);
 		}
-		
+
 		MENU_TYPES.register("worksite", () -> new MenuType<WorksiteBlockMenu>(WorksiteBlockMenu::new));
-		
+		RECIPE_TYPES.register("worksite", () -> {
+			RecipeType<WorksiteRecipe> recipe = RecipeType.simple(new ResourceLocation(MODID, "worksite"));
+			return recipe;
+		});
+		RECIPE_SERIALIZERS.register("worksite", () -> WorksiteRecipe.SERIALIZER);
+
 		BLOCKS.register(FMLJavaModLoadingContext.get().getModEventBus());
 		ITEMS.register(FMLJavaModLoadingContext.get().getModEventBus());
 		BLOCK_ENTITY_TYPES.register(FMLJavaModLoadingContext.get().getModEventBus());
 		MENU_TYPES.register(FMLJavaModLoadingContext.get().getModEventBus());
+		RECIPE_TYPES.register(FMLJavaModLoadingContext.get().getModEventBus());
+		RECIPE_SERIALIZERS.register(FMLJavaModLoadingContext.get().getModEventBus());
 
 		FMLJavaModLoadingContext.get().getModEventBus().addListener(this::registerConditionSerializers);
 		MinecraftForge.EVENT_BUS.addListener(this::registerCommands);
@@ -147,6 +164,7 @@ public class CrowdComputing {
 	}
 
 	private void addReloadListeners(final AddReloadListenerEvent event) {
+		event.addListener(WorksiteRecipe.RECIPIES);
 	}
 
 	private void clientSetup(final FMLClientSetupEvent event) {

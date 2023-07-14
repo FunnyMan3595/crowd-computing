@@ -142,7 +142,6 @@ public class WorksiteBlockMenu extends AbstractContainerMenu {
 		ItemStack result = quickMoveStack_internal(player, slot_index);
 		if (getBlockSlots() != old_block_slots) {
 			int new_slot_index = slot_index - old_block_slots + getBlockSlots();
-			CrowdComputing.LOGGER.info("Marking quick move source slot " + new_slot_index + " as changed.");
 			setRemoteSlot(new_slot_index, old_stack);
 			slots.get(new_slot_index).setChanged();
 		}
@@ -165,7 +164,6 @@ public class WorksiteBlockMenu extends AbstractContainerMenu {
 					return ItemStack.EMPTY;
 				}
 
-				CrowdComputing.LOGGER.info("Quick move source slot " + slot_index + " is now " + slot_stack);
 				if (slot_stack.isEmpty()) {
 					slot.set(ItemStack.EMPTY);
 				} else {
@@ -202,9 +200,6 @@ public class WorksiteBlockMenu extends AbstractContainerMenu {
 	@Override
 	public void setData(int index, int value) {
 		int old_value = worksite_data.get(index);
-		if (index < 10 && old_value != value) {
-		CrowdComputing.LOGGER.info("Data " + index + " updating from " + old_value + " to " + value);
-		}
 		if (old_value == value) {
 			return;
 		}
@@ -247,7 +242,6 @@ public class WorksiteBlockMenu extends AbstractContainerMenu {
 
 	@Override
 	public void setItem(int slot, int state_id, ItemStack value) {
-		CrowdComputing.LOGGER.info("Slot " + slot + " updating from " + getSlot(slot).getItem() + " to " + value);
 		lock_cache = false;
 		super.setItem(slot, state_id, value);
 	};
@@ -282,7 +276,6 @@ public class WorksiteBlockMenu extends AbstractContainerMenu {
 	
 	@Override
 	public void sendAllDataToRemote() {
-		CrowdComputing.LOGGER.info("Sending " + slots.size() + " inventory slots.");
 		super.sendAllDataToRemote();
 	}
 
@@ -290,9 +283,6 @@ public class WorksiteBlockMenu extends AbstractContainerMenu {
 	public void initializeContents(int stateId, List<ItemStack> items, ItemStack carried) {
 		super.initializeContents(stateId, new ArrayList<ItemStack>(), carried);
 		for (int i = 0; i < items.size(); i++) {
-			if (client_cache.getItem(i) != items.get(i)) {
-				CrowdComputing.LOGGER.info("Initializing slot " + i + " from " + client_cache.getItem(i) + " to " + items.get(i));
-			}
 			client_cache.setItem(i, items.get(i));
 		}
 		lock_cache = true;

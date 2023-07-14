@@ -1,0 +1,43 @@
+{
+  "type" : "forge:conditional",
+  "recipes" : [ {
+    "conditions" : [ {
+      "type" : "crowd_computing:should_load_defaults"
+    } ],
+    "recipe" : {
+      "type" : "crowd_computing:worksite",
+      "ingredients" : [ {
+        "ingredient" : {
+          "item" : "minecraft:dirt"
+        },
+        "count" : 2
+      } ],
+      "tools" : [ {
+        "tool" : {
+          "item" : "minecraft:iron_shovel"
+        }
+      } ],
+      "outputs" : {
+        "rolls" : 3,
+        "groups" : [ {
+          "weight" : 9,
+          "items" : [ {
+            "item" : "minecraft:diamond",
+            "count" : 2
+          } ]
+        }, {
+          "weight" : 1,
+          "items" : [ {
+            "item" : "minecraft:iron_ingot",
+            "count" : 1
+          } ]
+        } ]
+      },
+      "stages" : [ {
+        "message" : {
+          "translate" : "crowd_computing.working"
+        }
+      } ]
+    }
+  } ]
+}
