@@ -45,19 +45,23 @@ public class WorksiteRecipe implements Recipe<WorksiteBlockEntity> {
 	public final CountableIngredient[] tools;
 	public final Outputs outputs;
 	public final Stage[] stages;
+	public final boolean check_waterlogged_state;
+	public final boolean required_waterlogged_state;
 
 	public WorksiteRecipe(ResourceLocation id, CountableIngredient[] ingredients, CountableIngredient[] tools,
-			Outputs outputs, Stage[] stages) {
+			Outputs outputs, Stage[] stages, boolean check_waterlogged_state, boolean required_waterlogged_state) {
 		this.id = id;
 		this.ingredients = ingredients;
 		this.tools = tools;
 		this.outputs = outputs;
 		this.stages = stages;
+		this.check_waterlogged_state = check_waterlogged_state;
+		this.required_waterlogged_state = required_waterlogged_state;
 	}
 
 	@Override
 	public boolean matches(WorksiteBlockEntity worksite, Level level) {
-		return worksite.hasAllInputs(ingredients) && worksite.hasAllTools(tools);
+		return worksite.hasAllInputs(ingredients) && worksite.hasAllTools(tools) && (!check_waterlogged_state || required_waterlogged_state == worksite.isWaterlogged());
 	}
 
 	@Override
@@ -158,8 +162,15 @@ public class WorksiteRecipe implements Recipe<WorksiteBlockEntity> {
 				stages[i] = new Stage(GsonHelper.getAsInt(stage_object, "duration", 200), CrowdComputing.GSON.fromJson(
 						GsonHelper.getAsJsonObject(stage_object, "message", default_stage_message), Component.class));
 			}
+			
+			boolean check_waterlogged_state = false;
+			boolean required_waterlogged_state = false;
+			if (root.has("waterlogged")) {
+				check_waterlogged_state = true;
+				required_waterlogged_state = GsonHelper.getAsBoolean(root, "waterlogged");
+			}
 
-			return new WorksiteRecipe(id, ingredients, tools, outputs, stages);
+			return new WorksiteRecipe(id, ingredients, tools, outputs, stages, check_waterlogged_state, required_waterlogged_state);
 		}
 
 		@Override
@@ -180,6 +191,9 @@ public class WorksiteRecipe implements Recipe<WorksiteBlockEntity> {
 			for (int i = 0; i < recipe.stages.length; i++) {
 				recipe.stages[i].toNetwork(buf);
 			}
+			
+			buf.writeBoolean(recipe.check_waterlogged_state);
+			buf.writeBoolean(recipe.required_waterlogged_state);
 		}
 
 		@Override
@@ -201,7 +215,10 @@ public class WorksiteRecipe implements Recipe<WorksiteBlockEntity> {
 				stages[i] = Stage.fromNetwork(buf);
 			}
 
-			return new WorksiteRecipe(id, ingredients, tools, outputs, stages);
+			boolean check_waterlogged_state = buf.readBoolean();
+			boolean required_waterlogged_state = buf.readBoolean();
+
+			return new WorksiteRecipe(id, ingredients, tools, outputs, stages, check_waterlogged_state, required_waterlogged_state);
 		}
 	}
 

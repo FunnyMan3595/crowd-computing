@@ -6,6 +6,7 @@
     } ],
     "recipe" : {
       "type" : "crowd_computing:worksite",
+      "waterlogged": false,
       "ingredients" : [ {
         "ingredient" : {
           "item" : "minecraft:dirt"

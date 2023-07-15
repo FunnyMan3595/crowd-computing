@@ -14,24 +14,32 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
+import net.minecraft.world.level.block.SimpleWaterloggedBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
+import net.minecraft.world.level.material.FluidState;
+import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.level.material.Material;
 import net.minecraft.world.level.storage.loot.LootContext;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraftforge.registries.RegistryObject;
 
-public class WorksiteBlock extends HorizontalDirectionalBlock implements EntityBlock {
+public class WorksiteBlock extends HorizontalDirectionalBlock implements EntityBlock, SimpleWaterloggedBlock {
+	public static final BooleanProperty WATERLOGGED = BlockStateProperties.WATERLOGGED;
 	public static HashMap<String, RegistryObject<Block>> blocks = new HashMap<String, RegistryObject<Block>>();
 	public static HashMap<String, RegistryObject<Item>> items = new HashMap<String, RegistryObject<Item>>();
 	public final String name;
@@ -39,7 +47,7 @@ public class WorksiteBlock extends HorizontalDirectionalBlock implements EntityB
 
 	public WorksiteBlock(BlockBehaviour.Properties properties, String name, JsonObject config) {
 		super(properties);
-		this.registerDefaultState(stateDefinition.any().setValue(FACING, Direction.NORTH));
+		this.registerDefaultState(stateDefinition.any().setValue(FACING, Direction.NORTH).setValue(WATERLOGGED, false));
 		this.name = name;
 		this.config = config;
 	}
@@ -61,7 +69,36 @@ public class WorksiteBlock extends HorizontalDirectionalBlock implements EntityB
 
 	@Override
 	protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-		builder.add(FACING);
+		builder.add(FACING, WATERLOGGED);
+	}
+	
+	@Override
+	public BlockState getStateForPlacement(BlockPlaceContext context) {
+		BlockState state = this.defaultBlockState();
+		state = state.setValue(FACING, context.getHorizontalDirection());
+		FluidState fluid = context.getLevel().getFluidState(context.getClickedPos());
+		state = state.setValue(WATERLOGGED, fluid.getType() == Fluids.WATER);
+		return state;
+	}
+
+	@SuppressWarnings("deprecation")
+	@Override
+	public FluidState getFluidState(BlockState state) {
+		if (state.getValue(WATERLOGGED)) {
+			return Fluids.WATER.getSource(false);
+		}
+		return super.getFluidState(state);
+	}
+
+	@SuppressWarnings("deprecation")
+	@Override
+	public BlockState updateShape(BlockState state, Direction direction, BlockState old_state, LevelAccessor accessor,
+			BlockPos pos, BlockPos old_pos) {
+		if (state.getValue(WATERLOGGED)) {
+			accessor.scheduleTick(pos, Fluids.WATER, Fluids.WATER.getTickDelay(accessor));
+		}
+
+		return super.updateShape(state, direction, old_state, accessor, pos, old_pos);
 	}
 
 	@Override

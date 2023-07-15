@@ -693,4 +693,8 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 		}
 		return true;
 	}
+
+	public boolean isWaterlogged() {
+		return level.getBlockState(getBlockPos()).getValue(WorksiteBlock.WATERLOGGED);
+	}
 }
