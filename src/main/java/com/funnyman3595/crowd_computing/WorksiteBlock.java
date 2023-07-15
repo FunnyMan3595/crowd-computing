@@ -1,6 +1,5 @@
 package com.funnyman3595.crowd_computing;
 
-import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.List;
 
@@ -71,7 +70,7 @@ public class WorksiteBlock extends HorizontalDirectionalBlock implements EntityB
 	protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
 		builder.add(FACING, WATERLOGGED);
 	}
-	
+
 	@Override
 	public BlockState getStateForPlacement(BlockPlaceContext context) {
 		BlockState state = this.defaultBlockState();
@@ -112,19 +111,9 @@ public class WorksiteBlock extends HorizontalDirectionalBlock implements EntityB
 	}
 
 	public static WorksiteBlock load(String name, JsonObject config) {
-		Material material = Material.STONE;
-		if (config.has("material")) {
-			try {
-				String material_name = config.get("material").getAsString();
-				Field field = Material.class.getField(material_name.toUpperCase());
-				material = (Material) field.get(null);
-			} catch (Exception e) {
-				CrowdComputing.LOGGER.error("Unable to load material for worksite " + name, e);
-			}
-		}
-		return new WorksiteBlock(Properties.of(material).strength(0.3F).noOcclusion().isValidSpawn(WorksiteBlock::never)
-				.isRedstoneConductor(WorksiteBlock::never).isSuffocating(WorksiteBlock::never)
-				.isViewBlocking(WorksiteBlock::never), name, config);
+		return new WorksiteBlock(Properties.of(Material.STONE).strength(0.3F).noOcclusion()
+				.isValidSpawn(WorksiteBlock::never).isRedstoneConductor(WorksiteBlock::never)
+				.isSuffocating(WorksiteBlock::never).isViewBlocking(WorksiteBlock::never), name, config);
 	}
 
 	private static boolean never(BlockState state, BlockGetter getter, BlockPos pos) {

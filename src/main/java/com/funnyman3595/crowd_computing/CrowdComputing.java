@@ -106,8 +106,9 @@ public class CrowdComputing {
 				WorksiteBlockEntity.block_entities.put(name,
 						BLOCK_ENTITY_TYPES.register(name, () -> BlockEntityType.Builder
 								.of(WorksiteBlockEntity::new, WorksiteBlock.blocks.get(name).get()).build(null)));
-				WorksiteBlock.items.put(name, ITEMS.register(name,
-						() -> new BlockItem(WorksiteBlock.blocks.get(name).get(), new Item.Properties().tab(CreativeModeTab.TAB_DECORATIONS))));
+				WorksiteBlock.items.put(name,
+						ITEMS.register(name, () -> new BlockItem(WorksiteBlock.blocks.get(name).get(),
+								new Item.Properties().tab(CreativeModeTab.TAB_DECORATIONS))));
 			});
 		} catch (Exception e) {
 			throw new RuntimeException("Unable to read worksites directory.", e);
@@ -151,7 +152,8 @@ public class CrowdComputing {
 					LOGGER.error("Unable to load worksite upgrade file " + path, e);
 					return;
 				}
-				WorksiteUpgrade.items.put(name, ITEMS.register(name, () -> new Item(new Item.Properties().tab(CreativeModeTab.TAB_MISC))));
+				WorksiteUpgrade.items.put(name,
+						ITEMS.register(name, () -> new Item(new Item.Properties().tab(CreativeModeTab.TAB_MISC))));
 			});
 		} catch (Exception e) {
 			throw new RuntimeException("Unable to read crafting items directory.", e);
@@ -192,7 +194,7 @@ public class CrowdComputing {
 	}
 
 	private void addReloadListeners(final AddReloadListenerEvent event) {
-		event.addListener(WorksiteRecipe.RECIPIES);
+		event.addListener(WorksiteRecipe.RECIPES);
 	}
 
 	private void clientSetup(final FMLClientSetupEvent event) {

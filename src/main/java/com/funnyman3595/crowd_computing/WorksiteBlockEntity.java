@@ -410,7 +410,7 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 
 		entity.process_elapsed = 0;
 
-		for (WorksiteRecipe recipe : WorksiteRecipe.RECIPIES.get(level)) {
+		for (WorksiteRecipe recipe : WorksiteRecipe.RECIPES.get(level)) {
 			if (recipe.matches(entity, level)) {
 				entity.consumeAllInputs(recipe.ingredients);
 				entity.damageAllTools(recipe.tools);
@@ -488,7 +488,7 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 			process_elapsed = recipe_info.getInt("elapsed");
 			process_duration = recipe_info.getInt("duration");
 			inventory_dirty = true;
-			
+
 			if (recipe_info.contains("recipe_id")) {
 				try {
 					current_recipe = (WorksiteRecipe) level.getRecipeManager()
@@ -499,7 +499,7 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 			} else {
 				current_recipe = null;
 			}
-			
+
 			if (recipe_info.contains("blockage")) {
 				NonNullList<ItemStack> blockage_temp = NonNullList.withSize(MAX_STORED_BLOCKAGE, ItemStack.EMPTY);
 				ContainerHelper.loadAllItems(recipe_info.getCompound("blockage"), blockage_temp);
@@ -548,15 +548,15 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 			CompoundTag recipe_info = new CompoundTag();
 			recipe_info.putInt("elapsed", process_elapsed);
 			recipe_info.putInt("duration", process_duration);
-			
+
 			if (current_recipe != null) {
 				recipe_info.putString("recipe_id", current_recipe.id.toString());
 			}
-			
+
 			if (output_blockage != null) {
 				CompoundTag output_blockage_tag = new CompoundTag();
 				NonNullList<ItemStack> blockage_temp = NonNullList.withSize(MAX_STORED_BLOCKAGE, ItemStack.EMPTY);
-				for (int i=0; i<Math.min(MAX_STORED_BLOCKAGE, output_blockage.size()); i++) {
+				for (int i = 0; i < Math.min(MAX_STORED_BLOCKAGE, output_blockage.size()); i++) {
 					blockage_temp.set(i, output_blockage.get(i));
 				}
 				ContainerHelper.saveAllItems(output_blockage_tag, blockage_temp);
@@ -566,6 +566,16 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 	}
 
 	public boolean hasAllInputs(WorksiteRecipe.CountableIngredient[] ingredients) {
+		if (ingredients.length == 0) {
+			// Special case: No-ingredient recipes require input slots to be empty.
+			for (int i = 0; i < input_items.size(); i++) {
+				if (!input_items.get(i).isEmpty()) {
+					return false;
+				}
+			}
+			return true;
+		}
+
 		int[] needed = new int[ingredients.length];
 		for (int j = 0; j < ingredients.length; j++) {
 			needed[j] = ingredients[j].count();

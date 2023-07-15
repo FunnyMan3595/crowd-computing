@@ -38,7 +38,7 @@ public class WorksiteRecipe implements Recipe<WorksiteBlockEntity> {
 	public static final RegistryObject<RecipeType<WorksiteRecipe>> TYPE = RegistryObject
 			.create(new ResourceLocation(CrowdComputing.MODID, "worksite"), ForgeRegistries.RECIPE_TYPES);
 	public static final Serializer SERIALIZER = new Serializer();
-	public static final RecipeCache RECIPIES = new RecipeCache();
+	public static final RecipeCache RECIPES = new RecipeCache();
 
 	public final ResourceLocation id;
 	public final CountableIngredient[] ingredients;
@@ -61,7 +61,8 @@ public class WorksiteRecipe implements Recipe<WorksiteBlockEntity> {
 
 	@Override
 	public boolean matches(WorksiteBlockEntity worksite, Level level) {
-		return worksite.hasAllInputs(ingredients) && worksite.hasAllTools(tools) && (!check_waterlogged_state || required_waterlogged_state == worksite.isWaterlogged());
+		return worksite.hasAllInputs(ingredients) && worksite.hasAllTools(tools)
+				&& (!check_waterlogged_state || required_waterlogged_state == worksite.isWaterlogged());
 	}
 
 	@Override
@@ -143,10 +144,8 @@ public class WorksiteRecipe implements Recipe<WorksiteBlockEntity> {
 			JsonArray tools_json = GsonHelper.getAsJsonArray(root, "tools");
 			CountableIngredient[] tools = new CountableIngredient[tools_json.size()];
 			for (int i = 0; i < tools_json.size(); i++) {
-				JsonObject tool_object = GsonHelper.convertToJsonObject(tools_json.get(i),
-						"tools array item");
-				tools[i] = new CountableIngredient(
-						Ingredient.fromJson(GsonHelper.getAsJsonObject(tool_object, "tool")),
+				JsonObject tool_object = GsonHelper.convertToJsonObject(tools_json.get(i), "tools array item");
+				tools[i] = new CountableIngredient(Ingredient.fromJson(GsonHelper.getAsJsonObject(tool_object, "tool")),
 						GsonHelper.getAsInt(tool_object, "count", 1));
 			}
 
@@ -158,11 +157,11 @@ public class WorksiteRecipe implements Recipe<WorksiteBlockEntity> {
 			JsonObject default_stage_message = new JsonObject();
 			default_stage_message.addProperty("translate", "crowd_computing.stages.default");
 			for (int i = 0; i < stages_json.size(); i++) {
-				JsonObject stage_object = GsonHelper.convertToJsonObject(ingredients_json.get(i), "stages array item");
+				JsonObject stage_object = GsonHelper.convertToJsonObject(stages_json.get(i), "stages array item");
 				stages[i] = new Stage(GsonHelper.getAsInt(stage_object, "duration", 200), CrowdComputing.GSON.fromJson(
 						GsonHelper.getAsJsonObject(stage_object, "message", default_stage_message), Component.class));
 			}
-			
+
 			boolean check_waterlogged_state = false;
 			boolean required_waterlogged_state = false;
 			if (root.has("waterlogged")) {
@@ -170,7 +169,8 @@ public class WorksiteRecipe implements Recipe<WorksiteBlockEntity> {
 				required_waterlogged_state = GsonHelper.getAsBoolean(root, "waterlogged");
 			}
 
-			return new WorksiteRecipe(id, ingredients, tools, outputs, stages, check_waterlogged_state, required_waterlogged_state);
+			return new WorksiteRecipe(id, ingredients, tools, outputs, stages, check_waterlogged_state,
+					required_waterlogged_state);
 		}
 
 		@Override
@@ -191,7 +191,7 @@ public class WorksiteRecipe implements Recipe<WorksiteBlockEntity> {
 			for (int i = 0; i < recipe.stages.length; i++) {
 				recipe.stages[i].toNetwork(buf);
 			}
-			
+
 			buf.writeBoolean(recipe.check_waterlogged_state);
 			buf.writeBoolean(recipe.required_waterlogged_state);
 		}
@@ -218,7 +218,8 @@ public class WorksiteRecipe implements Recipe<WorksiteBlockEntity> {
 			boolean check_waterlogged_state = buf.readBoolean();
 			boolean required_waterlogged_state = buf.readBoolean();
 
-			return new WorksiteRecipe(id, ingredients, tools, outputs, stages, check_waterlogged_state, required_waterlogged_state);
+			return new WorksiteRecipe(id, ingredients, tools, outputs, stages, check_waterlogged_state,
+					required_waterlogged_state);
 		}
 	}
 
@@ -328,11 +329,12 @@ public class WorksiteRecipe implements Recipe<WorksiteBlockEntity> {
 
 					JsonArray group_json_items = GsonHelper.getAsJsonArray(group_json, "items");
 					for (int j = 0; j < group_json_items.size(); j++) {
-						JsonObject stack_json = GsonHelper.convertToJsonObject(group_json_items.get(j), "items array item");
+						JsonObject stack_json = GsonHelper.convertToJsonObject(group_json_items.get(j),
+								"items array item");
 						Item item = GsonHelper.getAsItem(stack_json, "item");
 						group.add(new ItemStack(item, GsonHelper.getAsInt(stack_json, "count", 1)));
 					}
-					
+
 					groups.add(group);
 				}
 
@@ -347,6 +349,7 @@ public class WorksiteRecipe implements Recipe<WorksiteBlockEntity> {
 		public List<WorksiteRecipe> get(Level level) {
 			if (!cache.containsKey(level)) {
 				cache.put(level, level.getRecipeManager().getAllRecipesFor(TYPE.get()));
+				CrowdComputing.LOGGER.info("Loaded " + cache.get(level).size() + " worksite recipes.");
 			}
 			return cache.get(level);
 		}

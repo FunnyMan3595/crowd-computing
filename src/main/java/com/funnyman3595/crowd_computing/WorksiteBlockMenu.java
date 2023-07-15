@@ -249,7 +249,7 @@ public class WorksiteBlockMenu extends AbstractContainerMenu {
 	@Override
 	public void broadcastChanges() {
 		ContainerSynchronizer synchronizer = ObfuscationReflectionHelper.getPrivateValue(AbstractContainerMenu.class,
-				this, "synchronizer");
+				this, "f_150397_");
 		if (synchronizer != null) {
 			synchronizer.sendDataChange(this, 0, worksite_data.get(0));
 			synchronizer.sendDataChange(this, 1, worksite_data.get(1));
@@ -263,7 +263,7 @@ public class WorksiteBlockMenu extends AbstractContainerMenu {
 	@Override
 	public void broadcastFullState() {
 		ContainerSynchronizer synchronizer = ObfuscationReflectionHelper.getPrivateValue(AbstractContainerMenu.class,
-				this, "synchronizer");
+				this, "f_150397_");
 		if (synchronizer != null) {
 			synchronizer.sendDataChange(this, 0, worksite_data.get(0));
 			synchronizer.sendDataChange(this, 1, worksite_data.get(1));

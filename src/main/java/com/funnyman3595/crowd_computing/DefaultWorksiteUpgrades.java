@@ -5,10 +5,11 @@ import java.io.IOException;
 
 import com.google.gson.JsonObject;
 
-public record DefaultWorksiteUpgrades(String name, int input_slot_count,
-		int tool_slot_count, int output_slot_count, int stack_size) {
+public record DefaultWorksiteUpgrades(String name, int input_slot_count, int tool_slot_count, int output_slot_count,
+		int stack_size) {
+
 	public static DefaultWorksiteUpgrades EVERYTHING = new DefaultWorksiteUpgrades("everything", 6, 2, 9, 64);
-	public static DefaultWorksiteUpgrades[] ALL = {EVERYTHING}; 
+	public static DefaultWorksiteUpgrades[] ALL = { EVERYTHING };
 
 	public void writeConfig() throws IOException {
 		JsonObject default_worksite_upgrade = new JsonObject();
