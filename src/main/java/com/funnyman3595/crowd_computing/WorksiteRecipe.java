@@ -16,6 +16,9 @@ import com.google.gson.JsonSerializer;
 
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.Registry;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -31,6 +34,7 @@ import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 
@@ -47,9 +51,12 @@ public class WorksiteRecipe implements Recipe<WorksiteBlockEntity> {
 	public final Stage[] stages;
 	public final boolean check_waterlogged_state;
 	public final boolean required_waterlogged_state;
+	public final BlockRequirement[] block_requirements;
+	public final int complexity;
 
 	public WorksiteRecipe(ResourceLocation id, CountableIngredient[] ingredients, CountableIngredient[] tools,
-			Outputs outputs, Stage[] stages, boolean check_waterlogged_state, boolean required_waterlogged_state) {
+			Outputs outputs, Stage[] stages, boolean check_waterlogged_state, boolean required_waterlogged_state,
+			BlockRequirement[] block_requirements) {
 		this.id = id;
 		this.ingredients = ingredients;
 		this.tools = tools;
@@ -57,12 +64,43 @@ public class WorksiteRecipe implements Recipe<WorksiteBlockEntity> {
 		this.stages = stages;
 		this.check_waterlogged_state = check_waterlogged_state;
 		this.required_waterlogged_state = required_waterlogged_state;
+		this.block_requirements = block_requirements;
+
+		int complexity = 0;
+		for (int i = 0; i < ingredients.length; i++) {
+			complexity += ingredients[i].count();
+		}
+		for (int i = 0; i < tools.length; i++) {
+			complexity += tools[i].count() * 10000;
+		}
+		if (check_waterlogged_state) {
+			complexity += 10000;
+		}
+		complexity += block_requirements.length * 10000;
+		this.complexity = complexity;
 	}
 
 	@Override
 	public boolean matches(WorksiteBlockEntity worksite, Level level) {
-		return worksite.hasAllInputs(ingredients) && worksite.hasAllTools(tools)
-				&& (!check_waterlogged_state || required_waterlogged_state == worksite.isWaterlogged());
+		if (check_waterlogged_state && required_waterlogged_state != worksite.isWaterlogged()) {
+			return false;
+		}
+		for (int i = 0; i < block_requirements.length; i++) {
+			BlockPos check_pos = worksite.getBlockPos().relative(block_requirements[i].direction());
+			if (!level.isLoaded(check_pos)) {
+				return false;
+			}
+			if (level.getBlockState(check_pos).getBlock() != block_requirements[i].block()) {
+				return false;
+			}
+		}
+		if (!worksite.hasAllTools(tools)) {
+			return false;
+		}
+		if (!worksite.hasAllInputs(ingredients)) {
+			return false;
+		}
+		return true;
 	}
 
 	@Override
@@ -128,6 +166,25 @@ public class WorksiteRecipe implements Recipe<WorksiteBlockEntity> {
 		}
 	}
 
+	public static record BlockRequirement(Direction direction, Block block) {
+		public boolean check(Level level, BlockPos pos) {
+			return level.getBlockState(pos).getBlock() == block;
+		}
+
+		@SuppressWarnings("deprecation")
+		public void toNetwork(FriendlyByteBuf buf) {
+			buf.writeUtf(direction.getName());
+			buf.writeId(Registry.BLOCK, block);
+		}
+
+		public static BlockRequirement fromNetwork(FriendlyByteBuf buf) {
+			Direction direction = Direction.byName(buf.readUtf());
+			@SuppressWarnings("deprecation")
+			Block block = buf.readById(Registry.BLOCK);
+			return new BlockRequirement(direction, block);
+		}
+	}
+
 	public static class Serializer implements RecipeSerializer<WorksiteRecipe> {
 		@Override
 		public WorksiteRecipe fromJson(ResourceLocation id, JsonObject root) {
@@ -169,8 +226,25 @@ public class WorksiteRecipe implements Recipe<WorksiteBlockEntity> {
 				required_waterlogged_state = GsonHelper.getAsBoolean(root, "waterlogged");
 			}
 
+			BlockRequirement[] block_requirements;
+			if (root.has("block_requirements")) {
+				JsonArray block_requirements_json = GsonHelper.getAsJsonArray(root, "block_requirements");
+				block_requirements = new BlockRequirement[block_requirements_json.size()];
+				for (int i = 0; i < block_requirements.length; i++) {
+					JsonObject block_requirement_object = GsonHelper.convertToJsonObject(block_requirements_json.get(i),
+							"block requirements array item");
+					Direction direction = Direction
+							.byName(GsonHelper.getAsString(block_requirement_object, "direction"));
+					Block block = ForgeRegistries.BLOCKS
+							.getValue(new ResourceLocation(GsonHelper.getAsString(block_requirement_object, "block")));
+					block_requirements[i] = new BlockRequirement(direction, block);
+				}
+			} else {
+				block_requirements = new BlockRequirement[0];
+			}
+
 			return new WorksiteRecipe(id, ingredients, tools, outputs, stages, check_waterlogged_state,
-					required_waterlogged_state);
+					required_waterlogged_state, block_requirements);
 		}
 
 		@Override
@@ -194,6 +268,11 @@ public class WorksiteRecipe implements Recipe<WorksiteBlockEntity> {
 
 			buf.writeBoolean(recipe.check_waterlogged_state);
 			buf.writeBoolean(recipe.required_waterlogged_state);
+
+			buf.writeVarInt(recipe.block_requirements.length);
+			for (int i = 0; i < recipe.block_requirements.length; i++) {
+				recipe.block_requirements[i].toNetwork(buf);
+			}
 		}
 
 		@Override
@@ -218,8 +297,13 @@ public class WorksiteRecipe implements Recipe<WorksiteBlockEntity> {
 			boolean check_waterlogged_state = buf.readBoolean();
 			boolean required_waterlogged_state = buf.readBoolean();
 
+			BlockRequirement[] block_requirements = new BlockRequirement[buf.readVarInt()];
+			for (int i = 0; i < block_requirements.length; i++) {
+				block_requirements[i] = BlockRequirement.fromNetwork(buf);
+			}
+
 			return new WorksiteRecipe(id, ingredients, tools, outputs, stages, check_waterlogged_state,
-					required_waterlogged_state);
+					required_waterlogged_state, block_requirements);
 		}
 	}
 

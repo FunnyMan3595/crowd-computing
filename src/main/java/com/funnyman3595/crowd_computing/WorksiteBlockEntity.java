@@ -410,17 +410,24 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 
 		entity.process_elapsed = 0;
 
+		int best_match_score = -1;
+		WorksiteRecipe best_match = null;
 		for (WorksiteRecipe recipe : WorksiteRecipe.RECIPES.get(level)) {
-			if (recipe.matches(entity, level)) {
-				entity.consumeAllInputs(recipe.ingredients);
-				entity.damageAllTools(recipe.tools);
-				entity.current_recipe = recipe;
-				entity.process_duration = 0;
-				for (WorksiteRecipe.Stage stage : recipe.stages) {
-					entity.process_duration += stage.duration();
-				}
-				return;
+			if (recipe.complexity > best_match_score && recipe.matches(entity, level)) {
+				best_match_score = recipe.complexity;
+				best_match = recipe;
 			}
+		}
+
+		if (best_match != null) {
+			entity.consumeAllInputs(best_match.ingredients);
+			entity.damageAllTools(best_match.tools);
+			entity.current_recipe = best_match;
+			entity.process_duration = 0;
+			for (WorksiteRecipe.Stage stage : best_match.stages) {
+				entity.process_duration += stage.duration();
+			}
+			return;
 		}
 
 		entity.inventory_dirty = false;

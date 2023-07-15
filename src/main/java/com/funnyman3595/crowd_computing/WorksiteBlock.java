@@ -91,13 +91,15 @@ public class WorksiteBlock extends HorizontalDirectionalBlock implements EntityB
 
 	@SuppressWarnings("deprecation")
 	@Override
-	public BlockState updateShape(BlockState state, Direction direction, BlockState old_state, LevelAccessor accessor,
-			BlockPos pos, BlockPos old_pos) {
+	public BlockState updateShape(BlockState state, Direction direction, BlockState other_state, LevelAccessor accessor,
+			BlockPos pos, BlockPos other_pos) {
 		if (state.getValue(WATERLOGGED)) {
 			accessor.scheduleTick(pos, Fluids.WATER, Fluids.WATER.getTickDelay(accessor));
 		}
 
-		return super.updateShape(state, direction, old_state, accessor, pos, old_pos);
+		((WorksiteBlockEntity) accessor.getBlockEntity(pos)).inventory_dirty = true;
+
+		return super.updateShape(state, direction, other_state, accessor, pos, other_pos);
 	}
 
 	@Override
