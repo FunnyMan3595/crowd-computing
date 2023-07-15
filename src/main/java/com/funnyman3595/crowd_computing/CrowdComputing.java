@@ -18,6 +18,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.RecipeType;
@@ -51,6 +52,7 @@ public class CrowdComputing {
 	public static final Path CONFIG_SUBDIR = FMLPaths.CONFIGDIR.get().resolve(MODID);
 	public static final Path WORKSITES_DIR = CONFIG_SUBDIR.resolve("worksites");
 	public static final Path WORKSITE_UPGRADES_DIR = CONFIG_SUBDIR.resolve("worksite_upgrades");
+	public static final Path CRAFTING_ITEMS_DIR = CONFIG_SUBDIR.resolve("crafting_items");
 
 	public static final DeferredRegister<Block> BLOCKS = DeferredRegister.create(ForgeRegistries.BLOCKS, MODID);
 	public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, MODID);
@@ -75,6 +77,10 @@ public class CrowdComputing {
 				Files.createDirectories(WORKSITE_UPGRADES_DIR);
 				for (DefaultWorksiteUpgrades worksite_upgrade : DefaultWorksiteUpgrades.ALL) {
 					worksite_upgrade.writeConfig();
+				}
+				Files.createDirectories(CRAFTING_ITEMS_DIR);
+				for (DefaultCraftingItems crafting_item : DefaultCraftingItems.ALL) {
+					crafting_item.writeConfig();
 				}
 			}
 		} catch (IOException e) {
@@ -101,7 +107,7 @@ public class CrowdComputing {
 						BLOCK_ENTITY_TYPES.register(name, () -> BlockEntityType.Builder
 								.of(WorksiteBlockEntity::new, WorksiteBlock.blocks.get(name).get()).build(null)));
 				WorksiteBlock.items.put(name, ITEMS.register(name,
-						() -> new BlockItem(WorksiteBlock.blocks.get(name).get(), new Item.Properties())));
+						() -> new BlockItem(WorksiteBlock.blocks.get(name).get(), new Item.Properties().tab(CreativeModeTab.TAB_DECORATIONS))));
 			});
 		} catch (Exception e) {
 			throw new RuntimeException("Unable to read worksites directory.", e);
@@ -127,6 +133,28 @@ public class CrowdComputing {
 			});
 		} catch (Exception e) {
 			throw new RuntimeException("Unable to read worksite upgrades directory.", e);
+		}
+
+		try {
+			Files.list(CRAFTING_ITEMS_DIR).forEach(path -> {
+				String[] split = path.getFileName().toString().split("\\.", 2);
+				if (split.length != 2 || !split[1].equalsIgnoreCase("json")) {
+					return;
+				}
+				String name = "crafting_item/" + split[0].toLowerCase();
+
+				@SuppressWarnings("unused")
+				JsonObject tree;
+				try {
+					tree = GSON.fromJson(new FileReader(path.toFile()), JsonObject.class);
+				} catch (IOException e) {
+					LOGGER.error("Unable to load worksite upgrade file " + path, e);
+					return;
+				}
+				WorksiteUpgrade.items.put(name, ITEMS.register(name, () -> new Item(new Item.Properties().tab(CreativeModeTab.TAB_MISC))));
+			});
+		} catch (Exception e) {
+			throw new RuntimeException("Unable to read crafting items directory.", e);
 		}
 
 		MENU_TYPES.register("worksite", () -> new MenuType<WorksiteBlockMenu>(WorksiteBlockMenu::new));
