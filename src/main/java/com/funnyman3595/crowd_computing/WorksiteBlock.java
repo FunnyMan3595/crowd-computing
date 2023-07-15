@@ -103,6 +103,20 @@ public class WorksiteBlock extends HorizontalDirectionalBlock implements EntityB
 	}
 
 	@Override
+	public boolean placeLiquid(LevelAccessor accessor, BlockPos pos, BlockState state, FluidState fluid_state) {
+		((WorksiteBlockEntity) accessor.getBlockEntity(pos)).inventory_dirty = true;
+
+		return SimpleWaterloggedBlock.super.placeLiquid(accessor, pos, state, fluid_state);
+	}
+
+	@Override
+	public ItemStack pickupBlock(LevelAccessor accessor, BlockPos pos, BlockState state) {
+		((WorksiteBlockEntity) accessor.getBlockEntity(pos)).inventory_dirty = true;
+
+		return SimpleWaterloggedBlock.super.pickupBlock(accessor, pos, state);
+	}
+
+	@Override
 	public List<ItemStack> getDrops(BlockState state, LootContext.Builder builder) {
 		return ((WorksiteBlockEntity) builder.getOptionalParameter(LootContextParams.BLOCK_ENTITY)).getDrops();
 	}
