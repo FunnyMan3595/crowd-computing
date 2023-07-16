@@ -147,7 +147,7 @@ public class WorksiteBlockMenu extends AbstractContainerMenu {
 		}
 		return result;
 	}
-	
+
 	public ItemStack quickMoveStack_internal(Player player, int slot_index) {
 		if (worksite != null) {
 			ItemStack original_stack = ItemStack.EMPTY;
@@ -208,11 +208,11 @@ public class WorksiteBlockMenu extends AbstractContainerMenu {
 			client_cache = new SimpleContainer(1000);
 		}
 		super.setData(index, value);
-		
+
 		if (index >= 10) {
 			return;
 		}
-		
+
 		updateSlots();
 
 		if (lock_cache) {
@@ -273,7 +273,7 @@ public class WorksiteBlockMenu extends AbstractContainerMenu {
 		updateSlots();
 		super.broadcastFullState();
 	}
-	
+
 	@Override
 	public void sendAllDataToRemote() {
 		super.sendAllDataToRemote();
@@ -289,32 +289,38 @@ public class WorksiteBlockMenu extends AbstractContainerMenu {
 	}
 
 	public class DynamicSlot extends Slot {
+		public static int TEXTURE_X = 0;
+		public static int TEXTURE_Y = 0;
+
 		public DynamicSlot(Container container, int index, int x, int y) {
 			super(container, index, x, y);
 		}
 
 		public int getTextureX() {
-			return 0;
+			return TEXTURE_X;
 		}
 
 		public int getTextureY() {
-			return 0;
+			return TEXTURE_Y;
 		}
 	}
 
 	public class UpgradeSlot extends DynamicSlot {
+		public static int TEXTURE_X = 18;
+		public static int TEXTURE_Y = 0;
+
 		public UpgradeSlot(Container container, int index, int x, int y) {
 			super(container, index, x, y);
 		}
 
 		@Override
 		public int getTextureX() {
-			return 18;
+			return TEXTURE_X;
 		}
 
 		@Override
 		public int getTextureY() {
-			return 0;
+			return TEXTURE_Y;
 		}
 
 		@Override
@@ -324,18 +330,21 @@ public class WorksiteBlockMenu extends AbstractContainerMenu {
 	}
 
 	public class ToolSlot extends DynamicSlot {
+		public static int TEXTURE_X = 18 * 2;
+		public static int TEXTURE_Y = 0;
+
 		public ToolSlot(Container container, int index, int x, int y) {
 			super(container, index, x, y);
 		}
 
 		@Override
 		public int getTextureX() {
-			return 18 * 2;
+			return TEXTURE_X;
 		}
 
 		@Override
 		public int getTextureY() {
-			return 0;
+			return TEXTURE_Y;
 		}
 	}
 
@@ -348,5 +357,12 @@ public class WorksiteBlockMenu extends AbstractContainerMenu {
 		public boolean mayPlace(ItemStack stack) {
 			return false;
 		}
+	}
+
+	public Container getContainer() {
+		if (worksite != null) {
+			return worksite;
+		}
+		return client_cache;
 	}
 }

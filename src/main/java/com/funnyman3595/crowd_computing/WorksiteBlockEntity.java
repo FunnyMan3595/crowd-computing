@@ -33,6 +33,10 @@ import net.minecraftforge.registries.RegistryObject;
 
 public class WorksiteBlockEntity extends BaseContainerBlockEntity
 		implements WorldlyContainer, StackedContentsCompatible {
+	public static final int MAX_UPGRADE_SLOTS = 3;
+	public static final int MAX_INPUT_SLOTS = 6;
+	public static final int MAX_TOOL_SLOTS = 2;
+	public static final int MAX_OUTPUT_SLOTS = 9;
 	public static final int MAX_STORED_BLOCKAGE = 10;
 	public static HashMap<String, RegistryObject<BlockEntityType<WorksiteBlockEntity>>> block_entities = new HashMap<String, RegistryObject<BlockEntityType<WorksiteBlockEntity>>>();
 
@@ -115,7 +119,7 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 				CrowdComputing.LOGGER.error("Failed to load upgrade slot count for " + block.name, e);
 			}
 		}
-		upgrades = NonNullList.withSize(Math.min(3, loaded_upgrade_slot_count), ItemStack.EMPTY);
+		upgrades = NonNullList.withSize(Math.min(MAX_UPGRADE_SLOTS, loaded_upgrade_slot_count), ItemStack.EMPTY);
 		input_items = NonNullList.withSize(builtin.input_slot_count(), ItemStack.EMPTY);
 		tool_items = NonNullList.withSize(builtin.tool_slot_count(), ItemStack.EMPTY);
 		output_items = NonNullList.withSize(builtin.output_slot_count(), ItemStack.EMPTY);
@@ -132,7 +136,7 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 				max_input_slot_count = upgrade.input_slot_count();
 			}
 		}
-		return Math.min(6, max_input_slot_count);
+		return Math.min(MAX_INPUT_SLOTS, max_input_slot_count);
 	}
 
 	public int getToolSlotCount() {
@@ -146,7 +150,7 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 				max_tool_slot_count = upgrade.tool_slot_count();
 			}
 		}
-		return Math.min(2, max_tool_slot_count);
+		return Math.min(MAX_TOOL_SLOTS, max_tool_slot_count);
 	}
 
 	public int getOutputSlotCount() {
@@ -160,7 +164,7 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 				max_output_slot_count = upgrade.output_slot_count();
 			}
 		}
-		return Math.min(9, max_output_slot_count);
+		return Math.min(MAX_OUTPUT_SLOTS, max_output_slot_count);
 	}
 
 	@Override

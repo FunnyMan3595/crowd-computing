@@ -363,6 +363,21 @@ public class WorksiteRecipe implements Recipe<WorksiteBlockEntity> {
 			return new Outputs(groups, weights, rolls);
 		}
 
+		public OutputForJEI[] forJEI() {
+			int total_weight = 0;
+			for (int i = 0; i < weights.size(); i++) {
+				total_weight += weights.getInt(i);
+			}
+			ObjectArrayList<OutputForJEI> outputs = new ObjectArrayList<OutputForJEI>();
+			for (int i = 0; i < groups.size(); i++) {
+				double chance = ((double) weights.getInt(i)) / total_weight;
+				for (ItemStack stack : groups.get(i)) {
+					outputs.add(new OutputForJEI(stack, chance));
+				}
+			}
+			return outputs.toArray(new OutputForJEI[0]);
+		}
+
 		public static class Serializer implements JsonDeserializer<Outputs>, JsonSerializer<Outputs> {
 			@Override
 			public JsonElement serialize(Outputs src, Type typeOfSrc, JsonSerializationContext context) {
@@ -425,6 +440,9 @@ public class WorksiteRecipe implements Recipe<WorksiteBlockEntity> {
 				return new Outputs(groups, weights, rolls);
 			}
 		}
+	}
+
+	public record OutputForJEI(ItemStack stack, double chance) {
 	}
 
 	public static class RecipeCache extends SimplePreparableReloadListener<Object> {

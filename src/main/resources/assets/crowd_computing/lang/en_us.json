@@ -1,10 +1,12 @@
-{ 
-	"item.crowd_computing.crafting_item.default_dirt_ball": "Dirt Ball",
-	"item.crowd_computing.worksite_upgrade.default_everything": "Everything Upgrade",
-	"block.crowd_computing.worksite.default_wood": "Wooden Worksite",
-	"block.crowd_computing.worksite.default_stone": "Stone Worksite",
-	"block.crowd_computing.worksite.default_iron": "Iron Worksite",
-	"block.crowd_computing.worksite.default_gold": "Golden Worksite",
-	"block.crowd_computing.worksite.default_diamond": "Diamond Worksite",
-	"block.crowd_computing.worksite.default_netherite": "Netherite Worksite"
+{
+  "item.crowd_computing.crafting_item.default_dirt_ball" : "Dirt Ball",
+  "item.crowd_computing.worksite_upgrade.default_everything" : "Everything Upgrade",
+  "block.crowd_computing.worksite.default_wood" : "Wooden Worksite",
+  "block.crowd_computing.worksite.default_stone" : "Stone Worksite",
+  "block.crowd_computing.worksite.default_iron" : "Iron Worksite",
+  "block.crowd_computing.worksite.default_gold" : "Golden Worksite",
+  "block.crowd_computing.worksite.default_diamond" : "Diamond Worksite",
+  "block.crowd_computing.worksite.default_netherite" : "Netherite Worksite",
+  "crowd_computing.worksite" : "Worksite",
+  "crowd_computing.worksite_output_chance" : "%0.2f%% chance"
 }

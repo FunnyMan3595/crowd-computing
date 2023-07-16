@@ -6,12 +6,15 @@
     } ],
     "recipe" : {
       "type" : "crowd_computing:worksite",
-      "waterlogged": false,
+      "waterlogged" : false,
       "ingredients" : [ {
         "ingredient" : {
           "item" : "minecraft:dirt"
-        },
-        "count" : 2
+        }
+      }, {
+        "ingredient" : {
+          "item" : "minecraft:dirt"
+        }
       } ],
       "tools" : [ {
         "tool" : {

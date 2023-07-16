@@ -11,9 +11,9 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
 
 public class WorksiteBlockScreen extends AbstractContainerScreen<WorksiteBlockMenu> {
-	private static final ResourceLocation BG = new ResourceLocation(CrowdComputing.MODID,
+	public static final ResourceLocation BG = new ResourceLocation(CrowdComputing.MODID,
 			"textures/gui/container/worksite.png");
-	private static final ResourceLocation SLOTS = new ResourceLocation(CrowdComputing.MODID,
+	public static final ResourceLocation SLOTS = new ResourceLocation(CrowdComputing.MODID,
 			"textures/gui/slot_types.png");
 
 	public WorksiteBlockScreen(WorksiteBlockMenu menu, Inventory inventory, Component name) {
