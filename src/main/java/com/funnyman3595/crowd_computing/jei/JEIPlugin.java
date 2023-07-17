@@ -2,11 +2,13 @@ package com.funnyman3595.crowd_computing.jei;
 
 import com.funnyman3595.crowd_computing.CrowdComputing;
 import com.funnyman3595.crowd_computing.WorksiteBlock;
+import com.funnyman3595.crowd_computing.WorksiteBlockScreen;
 import com.funnyman3595.crowd_computing.WorksiteRecipe;
 
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
 import mezz.jei.api.recipe.RecipeType;
+import mezz.jei.api.registration.IGuiHandlerRegistration;
 import mezz.jei.api.registration.IRecipeCatalystRegistration;
 import mezz.jei.api.registration.IRecipeCategoryRegistration;
 import mezz.jei.api.registration.IRecipeRegistration;
@@ -31,6 +33,12 @@ public class JEIPlugin implements IModPlugin {
 	@Override
 	public void registerCategories(IRecipeCategoryRegistration registration) {
 		registration.addRecipeCategories(new WorksiteRecipeCategory(registration.getJeiHelpers().getGuiHelper()));
+	}
+
+	@Override
+	public void registerGuiHandlers(IGuiHandlerRegistration registration) {
+		registration.addRecipeClickArea(WorksiteBlockScreen.class, 8 + 4 * 18 + 6, 17 + 1 * 18, 24, 16,
+				WORKSITE_RECIPE_TYPE);
 	}
 
 	@Override

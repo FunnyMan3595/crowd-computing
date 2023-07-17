@@ -3,10 +3,13 @@ package com.funnyman3595.crowd_computing.jei;
 import java.util.List;
 
 import com.funnyman3595.crowd_computing.WorksiteBlock;
+import com.funnyman3595.crowd_computing.WorksiteBlockEntity;
+import com.funnyman3595.crowd_computing.WorksiteBlockMenu;
 import com.funnyman3595.crowd_computing.WorksiteBlockMenu.DynamicSlot;
 import com.funnyman3595.crowd_computing.WorksiteBlockMenu.ToolSlot;
 import com.funnyman3595.crowd_computing.WorksiteBlockScreen;
 import com.funnyman3595.crowd_computing.WorksiteRecipe;
+import com.funnyman3595.crowd_computing.WorksiteRecipe.CountableIngredient;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import mezz.jei.api.constants.VanillaTypes;
@@ -42,7 +45,7 @@ public class WorksiteRecipeCategory implements IRecipeCategory<WorksiteRecipe> {
 
 	@Override
 	public IDrawable getBackground() {
-		return gui_helper.createDrawable(WorksiteBlockScreen.BG, 0, 0, 16 + 18 * 6, 16 + 18 * 3);
+		return gui_helper.createDrawable(WorksiteBlockScreen.BG, 8 + 18, 17, 18 * 9, 18 * 3);
 	}
 
 	@Override
@@ -51,44 +54,46 @@ public class WorksiteRecipeCategory implements IRecipeCategory<WorksiteRecipe> {
 				new ItemStack(WorksiteBlock.items.values().iterator().next().get()));
 	}
 
+	public ObjectArrayList<ItemStack> countable_ingredient_to_stacks(CountableIngredient ingredient) {
+		ObjectArrayList<ItemStack> stacks = new ObjectArrayList<ItemStack>();
+		for (ItemStack orig_stack : ingredient.ingredient().getItems()) {
+			ItemStack stack = orig_stack.copy();
+			stack.setCount(ingredient.count());
+			stacks.add(stack);
+		}
+		return stacks;
+	}
+
 	@Override
 	public void setRecipe(IRecipeLayoutBuilder builder, WorksiteRecipe recipe, IFocusGroup focuses) {
-		for (int i = 0; i < recipe.ingredients.length; i++) {
-			IRecipeSlotBuilder slot = builder.addSlot(RecipeIngredientRole.INPUT, 8 + 18 * i, 8);
+		WorksiteBlockMenu.makeVariableSlots(0, 2, 3, 1 * 18, 0, recipe.ingredients.length, (info) -> {
+			IRecipeSlotBuilder slot = builder.addSlot(RecipeIngredientRole.INPUT, info.x(), info.y());
 			slot.setBackground(gui_helper.createDrawable(WorksiteBlockScreen.SLOTS, DynamicSlot.TEXTURE_X,
 					DynamicSlot.TEXTURE_Y, 18, 18), -1, -1);
+			slot.addItemStacks(countable_ingredient_to_stacks(recipe.ingredients[info.slot()]));
+		});
 
-			ObjectArrayList<ItemStack> stacks = new ObjectArrayList<ItemStack>();
-			for (ItemStack orig_stack : recipe.ingredients[i].ingredient().getItems()) {
-				ItemStack stack = orig_stack.copy();
-				stack.setCount(recipe.ingredients[i].count());
-				stacks.add(stack);
-			}
-			slot.addItemStacks(stacks);
-		}
-
-		for (int i = 0; i < recipe.tools.length; i++) {
-			IRecipeSlotBuilder slot = builder.addSlot(RecipeIngredientRole.CATALYST, 8 + 18 * i, 8 + 18);
+		if (recipe.tools.length >= 1) {
+			IRecipeSlotBuilder slot = builder.addSlot(RecipeIngredientRole.INPUT, 3 * 18 + 9, 0);
 			slot.setBackground(gui_helper.createDrawable(WorksiteBlockScreen.SLOTS, ToolSlot.TEXTURE_X,
 					ToolSlot.TEXTURE_Y, 18, 18), -1, -1);
-
-			ObjectArrayList<ItemStack> stacks = new ObjectArrayList<ItemStack>();
-			for (ItemStack orig_stack : recipe.tools[i].ingredient().getItems()) {
-				ItemStack stack = orig_stack.copy();
-				stack.setCount(recipe.tools[i].count());
-				stacks.add(stack);
-			}
-			slot.addItemStacks(stacks);
+			slot.addItemStacks(countable_ingredient_to_stacks(recipe.tools[0]));
+		}
+		if (recipe.tools.length >= 2) {
+			IRecipeSlotBuilder slot = builder.addSlot(RecipeIngredientRole.INPUT, 3 * 18 + 9, 0);
+			slot.setBackground(gui_helper.createDrawable(WorksiteBlockScreen.SLOTS, ToolSlot.TEXTURE_X,
+					ToolSlot.TEXTURE_Y, 18, 18), -1, -1);
+			slot.addItemStacks(countable_ingredient_to_stacks(recipe.tools[0]));
 		}
 
 		WorksiteRecipe.OutputForJEI[] outputs = recipe.outputs.forJEI();
-		for (int i = 0; i < outputs.length; i++) {
-			IRecipeSlotBuilder slot = builder.addSlot(RecipeIngredientRole.OUTPUT, 8 + 18 * i, 8 + 18 * 2);
+		WorksiteBlockMenu.makeVariableSlots(0, 3, 3, 5 * 18, 0, outputs.length, (info) -> {
+			IRecipeSlotBuilder slot = builder.addSlot(RecipeIngredientRole.OUTPUT, info.x(), info.y());
 			slot.setBackground(gui_helper.createDrawable(WorksiteBlockScreen.SLOTS, DynamicSlot.TEXTURE_X,
 					DynamicSlot.TEXTURE_Y, 18, 18), -1, -1);
-			slot.addItemStack(outputs[i].stack());
-			slot.addTooltipCallback(new ChanceAdder(outputs[i].chance()));
-		}
+			slot.addItemStack(outputs[info.slot()].stack());
+			slot.addTooltipCallback(new ChanceAdder(outputs[info.slot()].chance()));
+		});
 	}
 
 	public class ChanceAdder implements IRecipeSlotTooltipCallback {

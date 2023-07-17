@@ -48,7 +48,6 @@ public class WorksiteBlockScreen extends AbstractContainerScreen<WorksiteBlockMe
 		int i = (width - imageWidth) / 2;
 		int j = (height - imageHeight) / 2;
 		this.blit(stack, i, j, 0, 0, imageWidth, imageHeight);
-		this.blit(stack, i + 8 + 4 * 18 + 6, j + 17 + 1 * 18, imageWidth, 0, 24, 16);
 		this.blit(stack, i + 8 + 4 * 18 + 6, j + 17 + 1 * 18, imageWidth, 16, menu.getProgress(), 16);
 
 		RenderSystem.setShaderTexture(0, SLOTS);
