@@ -405,6 +405,9 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 		for (ItemStack stack : output_items) {
 			drops.add(stack);
 		}
+		for (ItemStack stack : output_blockage) {
+			drops.add(stack);
+		}
 		return drops;
 	}
 
@@ -613,8 +616,10 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 					blockage_temp.set(i, output_blockage.get(i));
 				}
 				ContainerHelper.saveAllItems(output_blockage_tag, blockage_temp);
-				recipe_info.put("recipe_info", output_blockage_tag);
+				recipe_info.put("blockage", output_blockage_tag);
 			}
+
+			tag.put("recipe_info", recipe_info);
 		}
 	}
 
