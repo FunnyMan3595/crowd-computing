@@ -1,4 +1,5 @@
 {
+  "item.crowd_computing.notice" : "Notice",
   "item.crowd_computing.crafting_item.default_dirt_ball" : "Dirt Ball",
   "item.crowd_computing.worksite_upgrade.default_everything" : "Everything Upgrade",
   "block.crowd_computing.worksite.default_wood" : "Wooden Worksite",
@@ -13,5 +14,19 @@
   "crowd_computing.worksite_output_blocked" : "Hands are full!",
   "crowd_computing.worksite_idle" : "Waiting for something to do...",
   "crowd_computing.worksite_no_message_yet" : "",
-  "crowd_computing.working" : "Working..."
+  "crowd_computing.working" : "Working...",
+  "crowd_computing.worksite_conditions.waterlogged" : "Must be waterlogged.",
+  "crowd_computing.worksite_conditions.not_waterlogged" : "Must be dry.",
+  "crowd_computing.worksite_conditions.block_requirement" : "Must have %2$s %1$s.",
+  "crowd_computing.direction.up" : "above",
+  "crowd_computing.direction.down" : "below",
+  "crowd_computing.direction.north" : "to the north",
+  "crowd_computing.direction.south" : "to the south",
+  "crowd_computing.direction.east" : "to the east",
+  "crowd_computing.direction.west" : "to the west",
+  "crowd_computing.direction.front" : "in front",
+  "crowd_computing.direction.back" : "behind",
+  "crowd_computing.direction.left" : "to the left",
+  "crowd_computing.direction.right" : "to the right",
+  "crowd_computing.extra_requirements" : "Additional requirements:"
 }

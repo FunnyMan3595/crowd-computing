@@ -2,12 +2,14 @@ package com.funnyman3595.crowd_computing.jei;
 
 import java.util.List;
 
+import com.funnyman3595.crowd_computing.CrowdComputing;
 import com.funnyman3595.crowd_computing.WorksiteBlock;
 import com.funnyman3595.crowd_computing.WorksiteBlockMenu;
 import com.funnyman3595.crowd_computing.WorksiteBlockMenu.DynamicSlot;
 import com.funnyman3595.crowd_computing.WorksiteBlockMenu.ToolSlot;
 import com.funnyman3595.crowd_computing.WorksiteBlockScreen;
 import com.funnyman3595.crowd_computing.WorksiteRecipe;
+import com.funnyman3595.crowd_computing.WorksiteRecipe.BlockRequirement;
 import com.funnyman3595.crowd_computing.WorksiteRecipe.CountableIngredient;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -93,6 +95,42 @@ public class WorksiteRecipeCategory implements IRecipeCategory<WorksiteRecipe> {
 			slot.addItemStack(outputs[info.slot()].stack());
 			slot.addTooltipCallback(new ChanceAdder(outputs[info.slot()].chance()));
 		});
+
+		ObjectArrayList<Component> conditions = new ObjectArrayList<Component>();
+		if (recipe.check_waterlogged_state) {
+			if (recipe.required_waterlogged_state) {
+				conditions.add(Component.translatable("crowd_computing.worksite_conditions.waterlogged"));
+			} else {
+				conditions.add(Component.translatable("crowd_computing.worksite_conditions.not_waterlogged"));
+			}
+		}
+		for (BlockRequirement req : recipe.block_requirements) {
+			conditions.add(Component.translatable("crowd_computing.worksite_conditions.block_requirement",
+					Component.translatable("crowd_computing.direction." + req.direction().getName()),
+					req.block().getName()));
+		}
+		if (conditions.size() > 0) {
+			IRecipeSlotBuilder slot = builder.addSlot(RecipeIngredientRole.RENDER_ONLY, 3 * 18 + 6 + 4,
+					1 * 18);
+			slot.addItemStack(new ItemStack(CrowdComputing.NOTICE_ITEM.get(), 1)
+					.setHoverName(Component.translatable("crowd_computing.extra_requirements")));
+			slot.addTooltipCallback(new ConditionsAdder(conditions));
+		}
+	}
+
+	public class ConditionsAdder implements IRecipeSlotTooltipCallback {
+		public final ObjectArrayList<Component> conditions;
+
+		public ConditionsAdder(ObjectArrayList<Component> conditions) {
+			this.conditions = conditions;
+		}
+
+		@Override
+		public void onTooltip(IRecipeSlotView recipeSlotView, List<Component> tooltip) {
+			for (Component condition : conditions) {
+				tooltip.add(condition);
+			}
+		}
 	}
 
 	public class ChanceAdder implements IRecipeSlotTooltipCallback {

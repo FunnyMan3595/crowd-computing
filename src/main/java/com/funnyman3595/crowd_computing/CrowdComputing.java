@@ -29,6 +29,7 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegisterEvent;
+import net.minecraftforge.registries.RegistryObject;
 
 import java.io.FileReader;
 import java.io.IOException;
@@ -64,6 +65,8 @@ public class CrowdComputing {
 			.create(ForgeRegistries.RECIPE_TYPES, MODID);
 	public static final DeferredRegister<RecipeSerializer<?>> RECIPE_SERIALIZERS = DeferredRegister
 			.create(ForgeRegistries.RECIPE_SERIALIZERS, MODID);
+	public static final RegistryObject<Item> NOTICE_ITEM = ITEMS.register("notice",
+			() -> new Item(new Item.Properties()));
 
 	public CrowdComputing() {
 		ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, Config.COMMON.getRight());
