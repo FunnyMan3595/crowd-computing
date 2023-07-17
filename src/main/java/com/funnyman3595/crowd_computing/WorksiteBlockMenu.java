@@ -79,29 +79,29 @@ public class WorksiteBlockMenu extends AbstractContainerMenu {
 		}
 
 		int slot_offset = 0;
-		makeVariableSlots(container, slot_offset, 1, 3, 8 + 8 * 18, 17,
+		makeVariableSlots(container, slot_offset, 1, 3, 8 + 10 * 18, 17,
 				worksite_data.get(WorksiteBlockEntity.UPGRADE_SLOTS_INDEX), UpgradeSlot::new);
 		slot_offset += worksite_data.get(WorksiteBlockEntity.UPGRADE_SLOTS_INDEX);
 
 		if (worksite_data.get(WorksiteBlockEntity.INPUT_SLOTS_INDEX) == 1) {
 			// Special case because the input slot looks wrong if there's only one and it's
 			// on the left.
-			addSlot(new DynamicSlot(container, slot_offset, 8 + 1 * 18, 17 + 1 * 18));
+			addSlot(new DynamicSlot(container, slot_offset, 8 + 3 * 18, 17 + 1 * 18));
 		} else {
-			makeVariableSlots(container, slot_offset, 2, 3, 8, 17,
+			makeVariableSlots(container, slot_offset, 2, 3, 8 + 2 * 18, 17,
 					worksite_data.get(WorksiteBlockEntity.INPUT_SLOTS_INDEX), DynamicSlot::new);
 		}
 		slot_offset += worksite_data.get(WorksiteBlockEntity.INPUT_SLOTS_INDEX);
 
 		if (worksite_data.get(WorksiteBlockEntity.TOOL_SLOTS_INDEX) >= 1) {
-			addSlot(new ToolSlot(container, slot_offset, 8 + 2 * 18 + 9, 17));
+			addSlot(new ToolSlot(container, slot_offset, 8 + 4 * 18 + 9, 17));
 		}
 		if (worksite_data.get(WorksiteBlockEntity.TOOL_SLOTS_INDEX) >= 2) {
-			addSlot(new ToolSlot(container, slot_offset + 1, 8 + 2 * 18 + 9, 17 + 2 * 18));
+			addSlot(new ToolSlot(container, slot_offset + 1, 8 + 4 * 18 + 9, 17 + 2 * 18));
 		}
 		slot_offset += worksite_data.get(WorksiteBlockEntity.TOOL_SLOTS_INDEX);
 
-		makeVariableSlots(container, slot_offset, 3, 3, 8 + 4 * 18, 17,
+		makeVariableSlots(container, slot_offset, 3, 3, 8 + 6 * 18, 17,
 				worksite_data.get(WorksiteBlockEntity.OUTPUT_SLOTS_INDEX), ResultSlot::new);
 
 		addInventorySlots();
@@ -126,12 +126,13 @@ public class WorksiteBlockMenu extends AbstractContainerMenu {
 	public void addInventorySlots() {
 		for (int row = 0; row < 3; ++row) {
 			for (int column = 0; column < 9; ++column) {
-				this.addSlot(new Slot(player_inventory, column + row * 9 + 9, 8 + column * 18, 84 + row * 18));
+				this.addSlot(
+						new Slot(player_inventory, column + row * 9 + 9, 8 + column * 18 + 18, 84 + row * 18 + 18));
 			}
 		}
 
 		for (int hotbar_slot = 0; hotbar_slot < 9; ++hotbar_slot) {
-			this.addSlot(new Slot(player_inventory, hotbar_slot, 8 + hotbar_slot * 18, 142));
+			this.addSlot(new Slot(player_inventory, hotbar_slot, 8 + hotbar_slot * 18 + 18, 142 + 18));
 		}
 	}
 

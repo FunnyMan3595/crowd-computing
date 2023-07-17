@@ -177,6 +177,8 @@ public class CrowdComputing {
 		MinecraftForge.EVENT_BUS.addListener(this::registerCommands);
 		MinecraftForge.EVENT_BUS.addListener(this::addReloadListeners);
 		FMLJavaModLoadingContext.get().getModEventBus().addListener(this::clientSetup);
+
+		WorksiteMessageChannel.init();
 	}
 
 	public static ResourceLocation resourceLocation(String path) {

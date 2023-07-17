@@ -15,9 +15,14 @@ public class WorksiteBlockScreen extends AbstractContainerScreen<WorksiteBlockMe
 			"textures/gui/container/worksite.png");
 	public static final ResourceLocation SLOTS = new ResourceLocation(CrowdComputing.MODID,
 			"textures/gui/slot_types.png");
+	private Component worksite_message = Component.translatable("crowd_computing.worksite_no_message_yet");
 
 	public WorksiteBlockScreen(WorksiteBlockMenu menu, Inventory inventory, Component name) {
 		super(menu, inventory, name);
+		imageWidth = 176 + 18 * 2;
+		imageHeight = 166 + 18;
+		inventoryLabelX = 8 + 18;
+		inventoryLabelY = imageHeight - 94;
 	}
 
 	@Override
@@ -28,6 +33,14 @@ public class WorksiteBlockScreen extends AbstractContainerScreen<WorksiteBlockMe
 	}
 
 	@Override
+	protected void renderLabels(PoseStack stack, int unused1, int unused2) {
+		font.draw(stack, title, (imageWidth - font.width(title)) / 2.0f, (float) titleLabelY, 4210752);
+		font.draw(stack, worksite_message, (imageWidth - font.width(worksite_message)) / 2.0f,
+				(float) inventoryLabelY - 16, 4210752);
+		font.draw(stack, playerInventoryTitle, (float) inventoryLabelX, (float) inventoryLabelY, 4210752);
+	}
+
+	@Override
 	protected void renderBg(PoseStack stack, float unused1, int mouse_x, int mouse_y) {
 		RenderSystem.setShader(GameRenderer::getPositionTexShader);
 		RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
@@ -35,8 +48,8 @@ public class WorksiteBlockScreen extends AbstractContainerScreen<WorksiteBlockMe
 		int i = (width - imageWidth) / 2;
 		int j = (height - imageHeight) / 2;
 		this.blit(stack, i, j, 0, 0, imageWidth, imageHeight);
-		this.blit(stack, i + 8 + 2 * 18 + 6, j + 17 + 1 * 18, imageWidth, 0, 24, 16);
-		this.blit(stack, i + 8 + 2 * 18 + 6, j + 17 + 1 * 18, imageWidth, 16, menu.getProgress(), 16);
+		this.blit(stack, i + 8 + 4 * 18 + 6, j + 17 + 1 * 18, imageWidth, 0, 24, 16);
+		this.blit(stack, i + 8 + 4 * 18 + 6, j + 17 + 1 * 18, imageWidth, 16, menu.getProgress(), 16);
 
 		RenderSystem.setShaderTexture(0, SLOTS);
 		for (int slot_index = 0; slot_index < menu.getBlockSlots(); slot_index++) {
@@ -47,5 +60,9 @@ public class WorksiteBlockScreen extends AbstractContainerScreen<WorksiteBlockMe
 						18, 18);
 			}
 		}
+	}
+
+	public void set_worksite_message(Component message) {
+		worksite_message = message;
 	}
 }

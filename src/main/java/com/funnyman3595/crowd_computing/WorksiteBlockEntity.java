@@ -2,10 +2,12 @@ package com.funnyman3595.crowd_computing;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 
 import org.apache.commons.lang3.tuple.Pair;
 
+import com.funnyman3595.crowd_computing.WorksiteRecipe.Stage;
 import com.google.gson.JsonObject;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -13,8 +15,10 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.NonNullList;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.Connection;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.ContainerHelper;
 import net.minecraft.world.WorldlyContainer;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -29,6 +33,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BaseContainerBlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.registries.RegistryObject;
 
 public class WorksiteBlockEntity extends BaseContainerBlockEntity
@@ -52,6 +57,8 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 	public boolean inventory_dirty = true;
 	public WorksiteRecipe current_recipe = null;
 	public ObjectArrayList<ItemStack> output_blockage = null;
+
+	public HashSet<Player> players_in_gui = new HashSet<Player>();
 
 	public static final int UPGRADE_SLOTS_INDEX = 0;
 	public static final int INPUT_SLOTS_INDEX = 1;
@@ -310,6 +317,16 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 	}
 
 	@Override
+	public void startOpen(Player player) {
+		players_in_gui.add(player);
+	}
+
+	@Override
+	public void stopOpen(Player player) {
+		players_in_gui.remove(player);
+	}
+
+	@Override
 	public boolean stillValid(Player player) {
 		if (level.getBlockEntity(worldPosition) != this) {
 			return false;
@@ -392,6 +409,31 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 	}
 
 	public static void serverTick(Level level, BlockPos pos, BlockState state, WorksiteBlockEntity entity) {
+		if (!entity.players_in_gui.isEmpty()) {
+			Component message = Component.translatable("crowd_computing.worksite_unknown_stage");
+			if (entity.current_recipe != null) {
+				int duration_left = entity.process_elapsed;
+				for (Stage stage : entity.current_recipe.stages) {
+					duration_left -= stage.duration();
+					if (duration_left < 0) {
+						message = stage.message();
+						break;
+					}
+				}
+			} else if (entity.output_blockage != null) {
+				message = Component.translatable("crowd_computing.worksite_output_blocked");
+			} else {
+				message = Component.translatable("crowd_computing.worksite_idle");
+			}
+
+			ObjectArrayList<Connection> connection_list = new ObjectArrayList<Connection>();
+			for (Player player : entity.players_in_gui) {
+				connection_list.add(((ServerPlayer) player).connection.connection);
+			}
+			WorksiteMessageChannel.INSTANCE.send(PacketDistributor.NMLIST.with(() -> connection_list),
+					new WorksiteMessageChannel.WorksiteMessagePacket(message));
+		}
+
 		if (entity.current_recipe != null) {
 			entity.process_elapsed += 1;
 			if (entity.process_elapsed >= entity.process_duration) {

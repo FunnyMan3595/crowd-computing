@@ -3,7 +3,6 @@ package com.funnyman3595.crowd_computing.jei;
 import java.util.List;
 
 import com.funnyman3595.crowd_computing.WorksiteBlock;
-import com.funnyman3595.crowd_computing.WorksiteBlockEntity;
 import com.funnyman3595.crowd_computing.WorksiteBlockMenu.DynamicSlot;
 import com.funnyman3595.crowd_computing.WorksiteBlockMenu.ToolSlot;
 import com.funnyman3595.crowd_computing.WorksiteBlockScreen;
