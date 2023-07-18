@@ -13,6 +13,7 @@
   "crowd_computing.worksite_unknown_stage" : "Recipe stages are broken.",
   "crowd_computing.worksite_output_blocked" : "Hands are full!",
   "crowd_computing.worksite_idle" : "Waiting for something to do...",
+  "crowd_computing.worksite_no_worker" : "Nobody is here.",
   "crowd_computing.worksite_no_message_yet" : "",
   "crowd_computing.working" : "Working...",
   "crowd_computing.worksite_conditions.waterlogged" : "Must be waterlogged.",

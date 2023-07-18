@@ -9,13 +9,16 @@ import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.fml.loading.FMLPaths;
+import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.crafting.CraftingHelper;
 import net.minecraftforge.event.AddReloadListenerEvent;
 import net.minecraftforge.event.RegisterCommandsEvent;
+import net.minecraftforge.event.entity.EntityAttributeCreationEvent;
 import net.minecraft.client.gui.screens.MenuScreens;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTab;
@@ -24,6 +27,7 @@ import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.registries.DeferredRegister;
@@ -65,6 +69,8 @@ public class CrowdComputing {
 			.create(ForgeRegistries.RECIPE_TYPES, MODID);
 	public static final DeferredRegister<RecipeSerializer<?>> RECIPE_SERIALIZERS = DeferredRegister
 			.create(ForgeRegistries.RECIPE_SERIALIZERS, MODID);
+	public static final DeferredRegister<EntityType<?>> ENTITY_TYPES = DeferredRegister
+			.create(ForgeRegistries.ENTITY_TYPES, MODID);
 	public static final RegistryObject<Item> NOTICE_ITEM = ITEMS.register("notice",
 			() -> new Item(new Item.Properties()));
 
@@ -169,19 +175,25 @@ public class CrowdComputing {
 		});
 		RECIPE_SERIALIZERS.register("worksite", () -> WorksiteRecipe.SERIALIZER);
 
+		ENTITY_TYPES.register("crowd_member", () -> CrowdMemberEntity.TYPE);
+
 		BLOCKS.register(FMLJavaModLoadingContext.get().getModEventBus());
 		ITEMS.register(FMLJavaModLoadingContext.get().getModEventBus());
 		BLOCK_ENTITY_TYPES.register(FMLJavaModLoadingContext.get().getModEventBus());
 		MENU_TYPES.register(FMLJavaModLoadingContext.get().getModEventBus());
 		RECIPE_TYPES.register(FMLJavaModLoadingContext.get().getModEventBus());
 		RECIPE_SERIALIZERS.register(FMLJavaModLoadingContext.get().getModEventBus());
+		ENTITY_TYPES.register(FMLJavaModLoadingContext.get().getModEventBus());
 
 		FMLJavaModLoadingContext.get().getModEventBus().addListener(this::registerConditionSerializers);
 		MinecraftForge.EVENT_BUS.addListener(this::registerCommands);
 		MinecraftForge.EVENT_BUS.addListener(this::addReloadListeners);
 		FMLJavaModLoadingContext.get().getModEventBus().addListener(this::clientSetup);
+		FMLJavaModLoadingContext.get().getModEventBus().addListener(this::registerAttributes);
 
 		WorksiteMessageChannel.init();
+
+		DistExecutor.safeRunWhenOn(Dist.CLIENT, () -> ClientOnly::init);
 	}
 
 	public static ResourceLocation resourceLocation(String path) {
@@ -206,5 +218,9 @@ public class CrowdComputing {
 		event.enqueueWork(() -> {
 			MenuScreens.register(WorksiteBlockMenu.TYPE.get(), WorksiteBlockScreen::new);
 		});
+	}
+
+	private void registerAttributes(final EntityAttributeCreationEvent event) {
+		event.put(CrowdMemberEntity.TYPE, CrowdMemberEntity.attributes().build());
 	}
 }

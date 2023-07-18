@@ -138,6 +138,13 @@ repositories {
     name = "ModMaven"
     url = "https://modmaven.dev"
   }
+    maven {
+        url 'https://www.cursemaven.com'
+        // FG4: It's recommended to uncomment the following block
+        content {
+            includeGroup "curse.maven"
+        }
+    }
 }
 
 dependencies {
@@ -153,6 +160,7 @@ dependencies {
 
     // Examples using mod jars from ./libs
     // implementation fg.deobf("blank:coolmod-${mc_version}:${coolmod_version}")
+    implementation fg.deobf("curse.maven:miniatures-445521:4464293")
 
     // For more info...
     // http://www.gradle.org/docs/current/userguide/artifact_dependencies_tutorial.html

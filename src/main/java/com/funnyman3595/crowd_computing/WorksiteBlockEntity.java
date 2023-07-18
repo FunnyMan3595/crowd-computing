@@ -60,6 +60,8 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 
 	public HashSet<Player> players_in_gui = new HashSet<Player>();
 
+	public Worker worker = null;
+
 	public static final int UPGRADE_SLOTS_INDEX = 0;
 	public static final int INPUT_SLOTS_INDEX = 1;
 	public static final int TOOL_SLOTS_INDEX = 2;
@@ -414,7 +416,9 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 	public static void serverTick(Level level, BlockPos pos, BlockState state, WorksiteBlockEntity entity) {
 		if (!entity.players_in_gui.isEmpty()) {
 			Component message = Component.translatable("crowd_computing.worksite_unknown_stage");
-			if (entity.current_recipe != null) {
+			if (entity.worker == null) {
+				message = Component.translatable("crowd_computing.worksite_no_worker");
+			} else if (entity.current_recipe != null) {
 				int duration_left = entity.process_elapsed;
 				for (Stage stage : entity.current_recipe.stages) {
 					duration_left -= stage.duration();
@@ -435,6 +439,15 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 			}
 			WorksiteMessageChannel.INSTANCE.send(PacketDistributor.NMLIST.with(() -> connection_list),
 					new WorksiteMessageChannel.WorksiteMessagePacket(message));
+		}
+
+		if (entity.worker == null) {
+			return;
+		}
+
+		if (!entity.worker.isValid(entity)) {
+			entity.worker = null;
+			return;
 		}
 
 		if (entity.current_recipe != null) {
@@ -764,5 +777,9 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 
 	public boolean isWaterlogged() {
 		return level.getBlockState(getBlockPos()).getValue(WorksiteBlock.WATERLOGGED);
+	}
+
+	public interface Worker {
+		public boolean isValid(WorksiteBlockEntity entity);
 	}
 }
