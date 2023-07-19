@@ -9,6 +9,8 @@
   "block.crowd_computing.worksite.default_diamond" : "Diamond Worksite",
   "block.crowd_computing.worksite.default_netherite" : "Netherite Worksite",
   "crowd_computing.worksite" : "Worksite",
+  "crowd_computing.worksite_name_empty" : "Empty %s",
+  "crowd_computing.worksite_name_worker" : "%2$s's %1$s",
   "crowd_computing.worksite_output_chance" : "%0.2f%% chance",
   "crowd_computing.worksite_unknown_stage" : "Recipe stages are broken.",
   "crowd_computing.worksite_output_blocked" : "Hands are full!",

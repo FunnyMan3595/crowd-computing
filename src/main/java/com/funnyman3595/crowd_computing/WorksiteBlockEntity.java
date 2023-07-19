@@ -31,6 +31,7 @@ import net.minecraft.world.inventory.StackedContentsCompatible;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BaseContainerBlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.network.PacketDistributor;
@@ -61,6 +62,7 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 	public HashSet<Player> players_in_gui = new HashSet<Player>();
 
 	public Worker worker = null;
+	public int worker_search_tick = 0;
 
 	public static final int UPGRADE_SLOTS_INDEX = 0;
 	public static final int INPUT_SLOTS_INDEX = 1;
@@ -380,7 +382,10 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 
 	@Override
 	protected Component getDefaultName() {
-		return block.getName();
+		if (worker == null) {
+			return Component.translatable("crowd_computing.worksite_name_empty", block.getName());
+		}
+		return Component.translatable("crowd_computing.worksite_name_worker", block.getName(), worker.getName());
 	}
 
 	@Override
@@ -413,6 +418,56 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 		return drops;
 	}
 
+	public boolean tryGetWorker() {
+		if (worker != null) {
+			if (worker.isValid(this)) {
+				return true;
+			} else {
+				worker = null;
+			}
+		}
+
+		if (worker_search_tick == 0) {
+			requestWorker();
+		}
+		worker_search_tick = (worker_search_tick + 1) % 20;
+		return false;
+	}
+
+	public void requestWorker() {
+		if (!CrowdSourceBlockEntity.known_sources.containsKey(level)) {
+			return;
+		}
+
+		double best_distance_sq = Math.pow(CrowdSourceBlockEntity.MAX_RANGE, 2) + 1;
+		CrowdSourceBlockEntity best_source = null;
+		ObjectArrayList<BlockPos> bad_positions = new ObjectArrayList<BlockPos>();
+		for (BlockPos pos : CrowdSourceBlockEntity.known_sources.get(level)) {
+			double distance_sq = pos.distSqr(getBlockPos());
+			if (distance_sq < best_distance_sq && level.isLoaded(getBlockPos())) {
+				BlockEntity raw_source = level.getBlockEntity(pos);
+				if (raw_source == null || !(raw_source instanceof CrowdSourceBlockEntity)) {
+					bad_positions.add(pos);
+				} else {
+					CrowdSourceBlockEntity source = (CrowdSourceBlockEntity) raw_source;
+					if (source.range >= Math.sqrt(distance_sq)) {
+						best_distance_sq = distance_sq;
+						best_source = source;
+					}
+				}
+			}
+		}
+		if (bad_positions.size() > 0) {
+			for (BlockPos pos : bad_positions) {
+				CrowdSourceBlockEntity.known_sources.get(level).remove(pos);
+			}
+		}
+
+		if (best_source != null) {
+			best_source.requestSpawn(this);
+		}
+	}
+
 	public static void serverTick(Level level, BlockPos pos, BlockState state, WorksiteBlockEntity entity) {
 		if (!entity.players_in_gui.isEmpty()) {
 			Component message = Component.translatable("crowd_computing.worksite_unknown_stage");
@@ -441,7 +496,7 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 					new WorksiteMessageChannel.WorksiteMessagePacket(message));
 		}
 
-		if (entity.worker == null) {
+		if (!entity.tryGetWorker()) {
 			return;
 		}
 
@@ -781,5 +836,7 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 
 	public interface Worker {
 		public boolean isValid(WorksiteBlockEntity entity);
+
+		public Component getName();
 	}
 }

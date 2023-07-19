@@ -14,6 +14,7 @@ import net.minecraft.world.entity.ai.control.LookControl;
 import net.minecraft.world.entity.ai.goal.FloatGoal;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.Vec3;
 import noobanidus.mods.miniatures.entity.MiniMeEntity;
 
@@ -22,6 +23,10 @@ public class CrowdMemberEntity extends MiniMeEntity implements WorksiteBlockEnti
 
 	public BlockPos targetBlock = BlockPos.ZERO;
 	public CrowdTask task = CrowdTask.DIE;
+
+	public BlockPos parent_pos = null;
+	public CrowdSourceBlockEntity parent = null;
+
 	public static final EntityType<CrowdMemberEntity> TYPE = EntityType.Builder
 			.of(CrowdMemberEntity::new, MobCategory.CREATURE).sized(0.5f, 0.5f)
 			.build(CrowdComputing.MODID + ":crowd_member");
@@ -33,6 +38,7 @@ public class CrowdMemberEntity extends MiniMeEntity implements WorksiteBlockEnti
 
 	@Override
 	protected void registerGoals() {
+		this.goalSelector.addGoal(0, new CheckParentGoal(this));
 		this.goalSelector.addGoal(1, new LoadTaskGoal(this));
 		this.goalSelector.addGoal(2, new DoWorkGoal(this));
 		this.goalSelector.addGoal(3, new FloatGoal(this));
@@ -64,13 +70,32 @@ public class CrowdMemberEntity extends MiniMeEntity implements WorksiteBlockEnti
 		}
 	}
 
-	public static class KeepLookingControl extends LookControl {
-		public KeepLookingControl(Mob mob) {
-			super(mob);
+	public static class CheckParentGoal extends Goal {
+		public final CrowdMemberEntity mob;
+
+		public CheckParentGoal(CrowdMemberEntity mob) {
+			this.mob = mob;
 		}
 
-		protected boolean resetXRotOnTick() {
-			return false;
+		@Override
+		public boolean canUse() {
+			return mob.parent_pos != null;
+		}
+
+		@Override
+		public void tick() {
+			if (mob.parent != null && !mob.parent.isRemoved()) {
+				return;
+			}
+
+			if (mob.level.isLoaded(mob.parent_pos)) {
+				BlockEntity raw_parent = mob.level.getBlockEntity(mob.parent_pos);
+				if (raw_parent == null || !(raw_parent instanceof CrowdSourceBlockEntity)) {
+					mob.task = CrowdTask.DIE;
+				} else {
+					mob.parent = (CrowdSourceBlockEntity) raw_parent;
+				}
+			}
 		}
 	}
 

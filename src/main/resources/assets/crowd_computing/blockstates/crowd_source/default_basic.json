@@ -1,0 +1,7 @@
+{
+  "variants" : {
+    "" : {
+      "model" : "crowd_computing:block/crowd_source/default_basic"
+    }
+  }
+}

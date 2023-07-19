@@ -56,6 +56,7 @@ public class CrowdComputing {
 
 	public static final Path CONFIG_SUBDIR = FMLPaths.CONFIGDIR.get().resolve(MODID);
 	public static final Path WORKSITES_DIR = CONFIG_SUBDIR.resolve("worksites");
+	public static final Path CROWD_SOURCES_DIR = CONFIG_SUBDIR.resolve("crowd_sources");
 	public static final Path WORKSITE_UPGRADES_DIR = CONFIG_SUBDIR.resolve("worksite_upgrades");
 	public static final Path CRAFTING_ITEMS_DIR = CONFIG_SUBDIR.resolve("crafting_items");
 
@@ -81,6 +82,10 @@ public class CrowdComputing {
 			if (!Files.isDirectory(CONFIG_SUBDIR)) {
 				Files.createDirectories(WORKSITES_DIR);
 				for (DefaultWorksites worksite : DefaultWorksites.ALL) {
+					worksite.writeConfig();
+				}
+				Files.createDirectories(CROWD_SOURCES_DIR);
+				for (DefaultCrowdSources worksite : DefaultCrowdSources.ALL) {
 					worksite.writeConfig();
 				}
 				Files.createDirectories(WORKSITE_UPGRADES_DIR);
@@ -117,6 +122,33 @@ public class CrowdComputing {
 								.of(WorksiteBlockEntity::new, WorksiteBlock.blocks.get(name).get()).build(null)));
 				WorksiteBlock.items.put(name,
 						ITEMS.register(name, () -> new BlockItem(WorksiteBlock.blocks.get(name).get(),
+								new Item.Properties().tab(CreativeModeTab.TAB_DECORATIONS))));
+			});
+		} catch (Exception e) {
+			throw new RuntimeException("Unable to read worksites directory.", e);
+		}
+
+		try {
+			Files.list(CROWD_SOURCES_DIR).forEach(path -> {
+				String[] split = path.getFileName().toString().split("\\.", 2);
+				if (split.length != 2 || !split[1].equalsIgnoreCase("json")) {
+					return;
+				}
+				String name = "crowd_source/" + split[0].toLowerCase();
+
+				JsonObject tree;
+				try {
+					tree = GSON.fromJson(new FileReader(path.toFile()), JsonObject.class);
+				} catch (IOException e) {
+					LOGGER.error("Unable to load crowd source file " + path, e);
+					return;
+				}
+				CrowdSourceBlock.blocks.put(name, BLOCKS.register(name, () -> CrowdSourceBlock.load(name, tree)));
+				CrowdSourceBlockEntity.block_entities.put(name,
+						BLOCK_ENTITY_TYPES.register(name, () -> BlockEntityType.Builder
+								.of(CrowdSourceBlockEntity::new, CrowdSourceBlock.blocks.get(name).get()).build(null)));
+				CrowdSourceBlock.items.put(name,
+						ITEMS.register(name, () -> new BlockItem(CrowdSourceBlock.blocks.get(name).get(),
 								new Item.Properties().tab(CreativeModeTab.TAB_DECORATIONS))));
 			});
 		} catch (Exception e) {
@@ -169,6 +201,7 @@ public class CrowdComputing {
 		}
 
 		MENU_TYPES.register("worksite", () -> new MenuType<WorksiteBlockMenu>(WorksiteBlockMenu::new));
+		MENU_TYPES.register("crowd_source", () -> new MenuType<CrowdSourceBlockMenu>(CrowdSourceBlockMenu::new));
 		RECIPE_TYPES.register("worksite", () -> {
 			RecipeType<WorksiteRecipe> recipe = RecipeType.simple(new ResourceLocation(MODID, "worksite"));
 			return recipe;
@@ -217,6 +250,7 @@ public class CrowdComputing {
 	private void clientSetup(final FMLClientSetupEvent event) {
 		event.enqueueWork(() -> {
 			MenuScreens.register(WorksiteBlockMenu.TYPE.get(), WorksiteBlockScreen::new);
+			MenuScreens.register(CrowdSourceBlockMenu.TYPE.get(), CrowdSourceBlockScreen::new);
 		});
 	}
 
