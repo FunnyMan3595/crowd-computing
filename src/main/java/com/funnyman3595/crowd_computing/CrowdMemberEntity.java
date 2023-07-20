@@ -8,9 +8,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobCategory;
-import net.minecraft.world.entity.ai.control.LookControl;
 import net.minecraft.world.entity.ai.goal.FloatGoal;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.level.Level;
@@ -38,11 +36,11 @@ public class CrowdMemberEntity extends MiniMeEntity implements WorksiteBlockEnti
 
 	@Override
 	protected void registerGoals() {
-		this.goalSelector.addGoal(0, new CheckParentGoal(this));
-		this.goalSelector.addGoal(1, new LoadTaskGoal(this));
-		this.goalSelector.addGoal(2, new DoWorkGoal(this));
-		this.goalSelector.addGoal(3, new FloatGoal(this));
-		this.goalSelector.addGoal(4, new MoveToTargetBlockGoal(this));
+		this.goalSelector.addGoal(1, new CheckParentGoal(this));
+		this.goalSelector.addGoal(2, new LoadTaskGoal(this));
+		this.goalSelector.addGoal(3, new DoWorkGoal(this));
+		this.goalSelector.addGoal(4, new FloatGoal(this));
+		this.goalSelector.addGoal(5, new MoveToTargetBlockGoal(this));
 	}
 
 	@Override
@@ -62,11 +60,23 @@ public class CrowdMemberEntity extends MiniMeEntity implements WorksiteBlockEnti
 	public void load(CompoundTag tag) {
 		super.load(tag);
 
-		if (tag.contains("worksite")) {
-			CompoundTag worksite_tag = tag.getCompound("worksite");
-			BlockPos worksite = new BlockPos(worksite_tag.getInt("x"), worksite_tag.getInt("y"),
-					worksite_tag.getInt("z"));
-			task = new CrowdTask.WorkAtWorksite(worksite);
+		task = CrowdTask.load_nbt(tag.getCompound("task"));
+
+		if (tag.contains("parent_x")) {
+			parent_pos = new BlockPos(tag.getInt("parent_x"), tag.getInt("parent_y"), tag.getInt("parent_z"));
+		}
+	}
+
+	@Override
+	public void addAdditionalSaveData(CompoundTag tag) {
+		super.addAdditionalSaveData(tag);
+
+		tag.put("task", task.save_to_nbt());
+
+		if (parent_pos != null) {
+			tag.putInt("parent_x", parent_pos.getX());
+			tag.putInt("parent_y", parent_pos.getY());
+			tag.putInt("parent_z", parent_pos.getZ());
 		}
 	}
 

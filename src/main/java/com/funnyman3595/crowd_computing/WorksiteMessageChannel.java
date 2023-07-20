@@ -43,6 +43,7 @@ public class WorksiteMessageChannel {
 				DistExecutor.unsafeRunWhenOn(Dist.CLIENT,
 						() -> () -> WorksiteMessageChannelClient.set_worksite_message(packet.message));
 			});
+			ctx.get().setPacketHandled(true);
 		}
 	}
 }

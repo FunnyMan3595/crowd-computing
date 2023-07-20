@@ -4,13 +4,18 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.UUID;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.GsonHelper;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.Nameable;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -33,6 +38,7 @@ public class CrowdSourceBlockEntity extends BlockEntity implements MenuProvider,
 	public HashSet<Player> players_in_gui = new HashSet<Player>();
 	public HashSet<WorksiteBlockEntity> requested_workers = new HashSet<WorksiteBlockEntity>();
 	public HashMap<WorksiteBlockEntity, CrowdMemberEntity> spawned_workers = new HashMap<WorksiteBlockEntity, CrowdMemberEntity>();
+	public HashMap<BlockPos, UUID> spawned_worker_ids = new HashMap<BlockPos, UUID>();
 
 	public ContainerData crowd_source_data = new ContainerData() {
 		@Override
@@ -135,20 +141,44 @@ public class CrowdSourceBlockEntity extends BlockEntity implements MenuProvider,
 
 			entity.requested_workers.remove(worksite);
 			entity.spawned_workers.put(worksite, worker);
+			entity.spawned_worker_ids.put(worksite.getBlockPos(), worker.getUUID());
+			entity.setChanged();
 		}
 	}
 
 	@Override
 	public void load(CompoundTag tag) {
 		super.load(tag);
+		ListTag list = tag.getList("spawned_worker_ids", Tag.TAG_COMPOUND);
+		for (Tag raw_entry : list) {
+			CompoundTag entry = (CompoundTag) raw_entry;
+			BlockPos pos = new BlockPos(entry.getInt("block_x"), entry.getInt("block_y"), entry.getInt("block_z"));
+			UUID worker_uuid = entry.getUUID("worker_uuid");
+
+			spawned_worker_ids.put(pos, worker_uuid);
+		}
 	}
 
 	@Override
 	public void saveAdditional(CompoundTag tag) {
 		super.saveAdditional(tag);
+		ListTag list = new ListTag();
+		for (BlockPos pos : spawned_worker_ids.keySet()) {
+			CompoundTag entry = new CompoundTag();
+			entry.putInt("block_x", pos.getX());
+			entry.putInt("block_y", pos.getY());
+			entry.putInt("block_z", pos.getZ());
+			entry.putUUID("worker_uuid", spawned_worker_ids.get(pos));
+			list.add(entry);
+		}
+		tag.put("spawned_worker_ids", list);
 	}
 
 	public void requestSpawn(WorksiteBlockEntity worksite) {
+		if (level.isClientSide) {
+			return;
+		}
+
 		if (requested_workers.contains(worksite)) {
 			return;
 		}
@@ -156,8 +186,26 @@ public class CrowdSourceBlockEntity extends BlockEntity implements MenuProvider,
 			CrowdMemberEntity worker = spawned_workers.get(worksite);
 			if (worker.isDeadOrDying() || worker.isRemoved()) {
 				spawned_workers.remove(worksite);
+				spawned_worker_ids.remove(worksite.getBlockPos());
+				setChanged();
 			} else {
 				return;
+			}
+		}
+		if (spawned_worker_ids.containsKey(worksite.getBlockPos())) {
+			Entity raw_worker = ((ServerLevel) level).getEntity(spawned_worker_ids.get(worksite.getBlockPos()));
+			if (raw_worker == null || !(raw_worker instanceof CrowdMemberEntity) || raw_worker.isRemoved()) {
+				spawned_worker_ids.remove(worksite.getBlockPos());
+				setChanged();
+			} else {
+				CrowdMemberEntity worker = (CrowdMemberEntity) raw_worker;
+				if (worker.isDeadOrDying()) {
+					spawned_worker_ids.remove(worksite.getBlockPos());
+					setChanged();
+				} else {
+					spawned_workers.put(worksite, worker);
+					return;
+				}
 			}
 		}
 		requested_workers.add(worksite);
