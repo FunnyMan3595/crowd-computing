@@ -152,7 +152,7 @@ public class CrowdComputing {
 								new Item.Properties().tab(CreativeModeTab.TAB_DECORATIONS))));
 			});
 		} catch (Exception e) {
-			throw new RuntimeException("Unable to read worksites directory.", e);
+			throw new RuntimeException("Unable to read crowd sources directory.", e);
 		}
 
 		try {
