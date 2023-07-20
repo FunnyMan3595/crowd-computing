@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.stream.IntStream;
 
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -20,6 +21,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.ContainerHelper;
+import net.minecraft.world.Nameable;
 import net.minecraft.world.WorldlyContainer;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Inventory;
@@ -279,6 +281,8 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 				recalcSlots();
 			}
 		}
+		setChanged();
+		inventory_dirty = true;
 		return stack;
 	}
 
@@ -289,6 +293,8 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 		if (slot_pair.getLeft() == upgrades) {
 			recalcSlots();
 		}
+		setChanged();
+		inventory_dirty = true;
 		return result;
 	}
 
@@ -365,19 +371,31 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 	}
 
 	@Override
-	public int[] getSlotsForFace(Direction p_19238_) {
+	public int[] getSlotsForFace(Direction direction) {
+		if (direction == Direction.UP) {
+			return IntStream.range(worksite_data.get(UPGRADE_SLOTS_INDEX),
+					worksite_data.get(UPGRADE_SLOTS_INDEX) + worksite_data.get(INPUT_SLOTS_INDEX)).toArray();
+		} else if (direction == Direction.DOWN) {
+			return IntStream.range(
+					worksite_data.get(UPGRADE_SLOTS_INDEX) + worksite_data.get(INPUT_SLOTS_INDEX)
+							+ worksite_data.get(TOOL_SLOTS_INDEX),
+					worksite_data.get(UPGRADE_SLOTS_INDEX) + worksite_data.get(INPUT_SLOTS_INDEX)
+							+ worksite_data.get(TOOL_SLOTS_INDEX) + worksite_data.get(OUTPUT_SLOTS_INDEX))
+					.toArray();
+		}
+
 		int[] nothing = {};
 		return nothing;
 	}
 
 	@Override
 	public boolean canPlaceItemThroughFace(int slot, ItemStack stack, Direction side) {
-		return false;
+		return true;
 	}
 
 	@Override
 	public boolean canTakeItemThroughFace(int slot, ItemStack stack, Direction side) {
-		return false;
+		return true;
 	}
 
 	@Override
@@ -385,7 +403,7 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 		if (worker == null) {
 			return Component.translatable("crowd_computing.worksite_name_empty", block.getName());
 		}
-		return Component.translatable("crowd_computing.worksite_name_worker", block.getName(), worker.getName());
+		return Component.translatable("crowd_computing.worksite_name_worker", block.getName(), worker.getDisplayName());
 	}
 
 	@Override
@@ -834,9 +852,7 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 		return level.getBlockState(getBlockPos()).getValue(WorksiteBlock.WATERLOGGED);
 	}
 
-	public interface Worker {
+	public interface Worker extends Nameable {
 		public boolean isValid(WorksiteBlockEntity entity);
-
-		public Component getName();
 	}
 }

@@ -207,7 +207,8 @@ public abstract class CrowdTask {
 					if (!target_stack.isEmpty() && !ItemStack.isSameItemSameTags(target_stack, held)) {
 						continue;
 					}
-					if (target_stack.getCount() >= target_stack.getItem().getMaxStackSize(target_stack)) {
+					if (target_stack.getCount() >= Math.min(container.getMaxStackSize(),
+							target_stack.getItem().getMaxStackSize(target_stack))) {
 						continue;
 					}
 					if (!container.canPlaceItemThroughFace(slot, held, Direction.DOWN)) {
@@ -216,9 +217,10 @@ public abstract class CrowdTask {
 
 					int move_cap;
 					if (target_stack.isEmpty()) {
-						move_cap = held.getItem().getMaxStackSize(held);
+						move_cap = Math.min(container.getMaxStackSize(), held.getItem().getMaxStackSize(held));
 					} else {
-						move_cap = target_stack.getItem().getMaxStackSize(target_stack) - target_stack.getCount();
+						move_cap = Math.min(container.getMaxStackSize(),
+								target_stack.getItem().getMaxStackSize(target_stack) - target_stack.getCount());
 					}
 					int move_amount = Math.min(held.getCount(), move_cap);
 					ItemStack stack = held.split(move_amount);

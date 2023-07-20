@@ -2,6 +2,7 @@
   "item.crowd_computing.notice" : "Notice",
   "item.crowd_computing.crafting_item.default_dirt_ball" : "Dirt Ball",
   "item.crowd_computing.worksite_upgrade.default_everything" : "Everything Upgrade",
+  "entity.crowd_computing.crowd_member" : "Anonymous",
   "block.crowd_computing.worksite.default_wood" : "Wooden Worksite",
   "block.crowd_computing.worksite.default_stone" : "Stone Worksite",
   "block.crowd_computing.worksite.default_iron" : "Iron Worksite",

@@ -12,6 +12,8 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.ai.goal.FloatGoal;
 import net.minecraft.world.entity.ai.goal.Goal;
+import net.minecraft.world.entity.ai.navigation.AmphibiousPathNavigation;
+import net.minecraft.world.entity.ai.navigation.PathNavigation;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -71,6 +73,10 @@ public class CrowdMemberEntity extends MiniMeEntity implements WorksiteBlockEnti
 		}
 
 		return super.hurt(source, amount);
+	}
+
+	protected PathNavigation createNavigation(Level level) {
+		return new AmphibiousPathNavigation(this, level);
 	}
 
 	@Override
@@ -164,6 +170,11 @@ public class CrowdMemberEntity extends MiniMeEntity implements WorksiteBlockEnti
 		}
 
 		@Override
+		public boolean requiresUpdateEveryTick() {
+			return true;
+		}
+
+		@Override
 		public void tick() {
 			mob.task.run(mob);
 		}
@@ -198,6 +209,7 @@ public class CrowdMemberEntity extends MiniMeEntity implements WorksiteBlockEnti
 				for (Direction d : Direction.values()) {
 					acceptable_positions.add(mob.targetBlock.relative(d));
 				}
+				mob.getNavigation().setCanFloat(true);
 				mob.getNavigation().moveTo(mob.getNavigation().createPath(acceptable_positions, 0), 1.0);
 			}
 
