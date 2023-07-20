@@ -147,11 +147,6 @@ public class CrowdMemberEntity extends MiniMeEntity implements WorksiteBlockEnti
 		}
 
 		@Override
-		public boolean requiresUpdateEveryTick() {
-			return true;
-		}
-
-		@Override
 		public void tick() {
 			mob.task.run(mob);
 		}
@@ -172,6 +167,7 @@ public class CrowdMemberEntity extends MiniMeEntity implements WorksiteBlockEnti
 					&& !mob.targetBlock.closerToCenterThan(mob.position(), CLOSE_TO_BLOCK_DISTANCE);
 		}
 
+		@Override
 		public boolean requiresUpdateEveryTick() {
 			return true;
 		}

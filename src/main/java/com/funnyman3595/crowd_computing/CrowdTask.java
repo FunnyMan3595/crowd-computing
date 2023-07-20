@@ -4,9 +4,11 @@ import java.util.HashMap;
 import java.util.function.Function;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.entity.Pose;
-import net.minecraft.world.entity.ai.memory.MemoryModuleType;
+import net.minecraft.world.Container;
+import net.minecraft.world.WorldlyContainer;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.Vec3;
 
@@ -17,6 +19,7 @@ public abstract class CrowdTask {
 	static {
 		LOADERS.put(Die.ID, Die::load_nbt);
 		LOADERS.put(WorkAtWorksite.ID, WorkAtWorksite::load_nbt);
+		LOADERS.put(MoveStuff.ID, MoveStuff::load_nbt);
 	}
 
 	public abstract void init(CrowdMemberEntity mob);
@@ -134,6 +137,123 @@ public abstract class CrowdTask {
 			tag.putInt("worksite_x", worksite.getX());
 			tag.putInt("worksite_y", worksite.getY());
 			tag.putInt("worksite_z", worksite.getZ());
+			return tag;
+		}
+	}
+
+	public static class MoveStuff extends CrowdTask {
+		public static String ID = "move_stuff";
+		public BlockSelector from;
+		public BlockSelector to;
+		public ItemStack held;
+
+		public MoveStuff(BlockSelector from, BlockSelector to, ItemStack held) {
+			this.from = from;
+			this.to = to;
+			this.held = held;
+		}
+
+		@Override
+		public void init(CrowdMemberEntity mob) {
+			if (held.isEmpty()) {
+				mob.targetBlock = from.get_blocks().findAny().get();
+			} else {
+				mob.targetBlock = to.get_blocks().findAny().get();
+			}
+		}
+
+		@Override
+		public void run(CrowdMemberEntity mob) {
+			if (held.isEmpty()) {
+				BlockEntity entity = mob.level.getBlockEntity(mob.targetBlock);
+				if (entity == null || !(entity instanceof Container)) {
+					mob.kill();
+					return;
+				}
+				WorldlyContainer container;
+				if (entity instanceof WorldlyContainer) {
+					container = (WorldlyContainer) entity;
+				} else {
+					container = new WorldlyWrapper((Container) entity);
+				}
+				for (int slot : container.getSlotsForFace(Direction.DOWN)) {
+					ItemStack stack = container.getItem(slot);
+					if (stack.isEmpty()) {
+						continue;
+					}
+					if (!container.canTakeItemThroughFace(slot, stack, Direction.DOWN)) {
+						continue;
+					}
+					held = container.removeItem(slot, stack.getCount());
+					if (!held.isEmpty()) {
+						mob.targetBlock = to.get_blocks().findAny().get();
+						return;
+					}
+				}
+			} else {
+				BlockEntity entity = mob.level.getBlockEntity(mob.targetBlock);
+				if (entity == null || !(entity instanceof Container)) {
+					mob.kill();
+					return;
+				}
+				WorldlyContainer container;
+				if (entity instanceof WorldlyContainer) {
+					container = (WorldlyContainer) entity;
+				} else {
+					container = new WorldlyWrapper((Container) entity);
+				}
+				for (int slot : container.getSlotsForFace(Direction.UP)) {
+					ItemStack target_stack = container.getItem(slot);
+					if (!target_stack.isEmpty() && !ItemStack.isSameItemSameTags(target_stack, held)) {
+						continue;
+					}
+					if (target_stack.getCount() >= target_stack.getItem().getMaxStackSize(target_stack)) {
+						continue;
+					}
+					if (!container.canPlaceItemThroughFace(slot, held, Direction.DOWN)) {
+						continue;
+					}
+
+					int move_cap;
+					if (target_stack.isEmpty()) {
+						move_cap = held.getItem().getMaxStackSize(held);
+					} else {
+						move_cap = target_stack.getItem().getMaxStackSize(target_stack) - target_stack.getCount();
+					}
+					int move_amount = Math.min(held.getCount(), move_cap);
+					ItemStack stack = held.split(move_amount);
+					stack.setCount(move_amount + target_stack.getCount());
+					container.setItem(slot, stack);
+					if (held.isEmpty()) {
+						held = ItemStack.EMPTY;
+						mob.targetBlock = from.get_blocks().findAny().get();
+						break;
+					}
+				}
+			}
+		}
+
+		@Override
+		public String get_id() {
+			return ID;
+		}
+
+		public static CrowdTask load_nbt(CompoundTag tag) {
+			BlockSelector from = BlockSelector.load_nbt(tag.getCompound("from_blocks"));
+			BlockSelector to = BlockSelector.load_nbt(tag.getCompound("to_blocks"));
+			ItemStack held = ItemStack.EMPTY.copy();
+			if (tag.contains("held_item")) {
+				held.deserializeNBT(tag.getCompound("held_item"));
+			}
+			return new MoveStuff(from, to, held);
+		}
+
+		@Override
+		public CompoundTag save_to_nbt() {
+			CompoundTag tag = super.save_to_nbt();
+			tag.put("from_blocks", from.save_to_nbt());
+			tag.put("to_blocks", to.save_to_nbt());
+			tag.put("held_item", held.serializeNBT());
 			return tag;
 		}
 	}
