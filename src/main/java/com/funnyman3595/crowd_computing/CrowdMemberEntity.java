@@ -7,10 +7,13 @@ import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.ai.goal.FloatGoal;
 import net.minecraft.world.entity.ai.goal.Goal;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.Vec3;
@@ -54,6 +57,20 @@ public class CrowdMemberEntity extends MiniMeEntity implements WorksiteBlockEnti
 		Vec3 pos = position();
 		return targetBlock.getX() == (int) Math.floor(pos.x) && targetBlock.getY() == (int) Math.floor(pos.y)
 				&& targetBlock.getZ() == (int) Math.floor(pos.z);
+	}
+
+	@Override
+	public boolean hurt(DamageSource source, float amount) {
+		if (source.getEntity() instanceof Player) {
+			Player player = (Player) source.getEntity();
+			ItemStack weapon = player.getMainHandItem();
+			if (!weapon.isEmpty() && weapon.getItem() instanceof WandItem) {
+				kill();
+				return true;
+			}
+		}
+
+		return super.hurt(source, amount);
 	}
 
 	@Override

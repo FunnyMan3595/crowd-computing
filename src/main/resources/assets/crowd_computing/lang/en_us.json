@@ -31,5 +31,9 @@
   "crowd_computing.direction.back" : "behind",
   "crowd_computing.direction.left" : "to the left",
   "crowd_computing.direction.right" : "to the right",
-  "crowd_computing.extra_requirements" : "Additional requirements:"
+  "crowd_computing.extra_requirements" : "Additional requirements:",
+  "crowd_computing.wand_source" : "Bound to Crowd Source.",
+  "crowd_computing.wand_start" : "Source block selected.",
+  "crowd_computing.wand_end" : "Spawning crowd member.",
+  "crowd_computing.wand_clear" : "Cleared source block."
 }

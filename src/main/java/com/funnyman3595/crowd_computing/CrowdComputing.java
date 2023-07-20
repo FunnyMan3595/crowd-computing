@@ -207,6 +207,7 @@ public class CrowdComputing {
 			return recipe;
 		});
 		RECIPE_SERIALIZERS.register("worksite", () -> WorksiteRecipe.SERIALIZER);
+		ITEMS.register("wand", () -> new WandItem());
 
 		ENTITY_TYPES.register("crowd_member", () -> CrowdMemberEntity.TYPE);
 
