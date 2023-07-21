@@ -22,7 +22,7 @@ import net.minecraft.world.phys.Vec3;
 import noobanidus.mods.miniatures.entity.MiniMeEntity;
 
 public class CrowdMemberEntity extends MiniMeEntity implements WorksiteBlockEntity.Worker {
-	public static final float CLOSE_TO_BLOCK_DISTANCE = 1.625f;
+	public static final float CLOSE_TO_BLOCK_DISTANCE = 2f;
 
 	public BlockPos targetBlock = BlockPos.ZERO;
 	public CrowdTask task = CrowdTask.DIE;
@@ -117,6 +117,10 @@ public class CrowdMemberEntity extends MiniMeEntity implements WorksiteBlockEnti
 
 		@Override
 		public void tick() {
+			if (mob.level.isClientSide) {
+				return;
+			}
+
 			if (mob.parent != null && !mob.parent.isRemoved()) {
 				return;
 			}
@@ -151,6 +155,10 @@ public class CrowdMemberEntity extends MiniMeEntity implements WorksiteBlockEnti
 
 		@Override
 		public void tick() {
+			if (mob.level.isClientSide) {
+				return;
+			}
+
 			mob.task.init(mob);
 		}
 	}
@@ -176,7 +184,11 @@ public class CrowdMemberEntity extends MiniMeEntity implements WorksiteBlockEnti
 
 		@Override
 		public void tick() {
-			mob.task.run(mob);
+			if (mob.level.isClientSide) {
+				return;
+			}
+
+			mob.task.run(mob, this);
 		}
 	}
 
@@ -202,6 +214,10 @@ public class CrowdMemberEntity extends MiniMeEntity implements WorksiteBlockEnti
 
 		@Override
 		public void tick() {
+			if (mob.level.isClientSide) {
+				return;
+			}
+
 			if (tick == 0) {
 				mob.setNoGravity(false);
 

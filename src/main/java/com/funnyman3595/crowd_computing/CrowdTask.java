@@ -8,6 +8,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.Container;
 import net.minecraft.world.WorldlyContainer;
+import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.Vec3;
@@ -24,7 +25,7 @@ public abstract class CrowdTask {
 
 	public abstract void init(CrowdMemberEntity mob);
 
-	public abstract void run(CrowdMemberEntity mob);
+	public abstract void run(CrowdMemberEntity mob, Goal goal);
 
 	public abstract String get_id();
 
@@ -40,7 +41,7 @@ public abstract class CrowdTask {
 	}
 
 	public static class Die extends CrowdTask {
-		public static String ID = "die";
+		public static final String ID = "die";
 
 		@Override
 		public void init(CrowdMemberEntity mob) {
@@ -48,7 +49,7 @@ public abstract class CrowdTask {
 		}
 
 		@Override
-		public void run(CrowdMemberEntity mob) {
+		public void run(CrowdMemberEntity mob, Goal goal) {
 			mob.kill();
 		}
 
@@ -68,7 +69,7 @@ public abstract class CrowdTask {
 	}
 
 	public static class WorkAtWorksite extends CrowdTask {
-		public static String ID = "work_at_worksite";
+		public static final String ID = "work_at_worksite";
 
 		public BlockPos worksite;
 		public int tick = 0;
@@ -83,7 +84,7 @@ public abstract class CrowdTask {
 		}
 
 		@Override
-		public void run(CrowdMemberEntity mob) {
+		public void run(CrowdMemberEntity mob, Goal goal) {
 			if (tick == 0) {
 				BlockEntity raw_worksite_entity = mob.level.getBlockEntity(worksite);
 				if (raw_worksite_entity == null || !(raw_worksite_entity instanceof WorksiteBlockEntity)) {
@@ -142,15 +143,25 @@ public abstract class CrowdTask {
 	}
 
 	public static class MoveStuff extends CrowdTask {
-		public static String ID = "move_stuff";
+		public static final String ID = "move_stuff";
 		public BlockSelector from;
 		public BlockSelector to;
 		public ItemStack held;
+		public int limit;
+
+		public MoveStuff(BlockSelector from, BlockSelector to) {
+			this(from, to, ItemStack.EMPTY, -1);
+		}
 
 		public MoveStuff(BlockSelector from, BlockSelector to, ItemStack held) {
+			this(from, to, held, -1);
+		}
+
+		public MoveStuff(BlockSelector from, BlockSelector to, ItemStack held, int limit) {
 			this.from = from;
 			this.to = to;
 			this.held = held;
+			this.limit = limit;
 		}
 
 		@Override
@@ -163,7 +174,11 @@ public abstract class CrowdTask {
 		}
 
 		@Override
-		public void run(CrowdMemberEntity mob) {
+		public void run(CrowdMemberEntity mob, Goal goal) {
+			if (!mob.targetBlock.closerToCenterThan(mob.position(), CrowdMemberEntity.CLOSE_TO_BLOCK_DISTANCE)) {
+				goal.stop();
+				return;
+			}
 			if (held.isEmpty()) {
 				BlockEntity entity = mob.level.getBlockEntity(mob.targetBlock);
 				if (entity == null || !(entity instanceof Container)) {
@@ -187,6 +202,7 @@ public abstract class CrowdTask {
 					held = container.removeItem(slot, stack.getCount());
 					if (!held.isEmpty()) {
 						mob.targetBlock = to.get_blocks().findAny().get();
+						goal.stop();
 						return;
 					}
 				}
@@ -202,6 +218,21 @@ public abstract class CrowdTask {
 				} else {
 					container = new WorldlyWrapper((Container) entity);
 				}
+				int move_cap = held.getCount();
+				if (limit >= 1) {
+					int already_present = 0;
+					for (int slot : container.getSlotsForFace(Direction.UP)) {
+						ItemStack target_stack = container.getItem(slot);
+						if (!target_stack.isEmpty() && !ItemStack.isSameItemSameTags(target_stack, held)) {
+							continue;
+						}
+						already_present += target_stack.getCount();
+					}
+					move_cap = Math.min(move_cap, limit - already_present);
+				}
+				if (move_cap <= 0) {
+					return;
+				}
 				for (int slot : container.getSlotsForFace(Direction.UP)) {
 					ItemStack target_stack = container.getItem(slot);
 					if (!target_stack.isEmpty() && !ItemStack.isSameItemSameTags(target_stack, held)) {
@@ -215,21 +246,29 @@ public abstract class CrowdTask {
 						continue;
 					}
 
-					int move_cap;
+					int move_amount = move_cap;
 					if (target_stack.isEmpty()) {
-						move_cap = Math.min(container.getMaxStackSize(), held.getItem().getMaxStackSize(held));
+						move_amount = Math.min(move_amount, container.getMaxStackSize());
+						move_amount = Math.min(move_amount, held.getItem().getMaxStackSize(held));
 					} else {
-						move_cap = Math.min(container.getMaxStackSize(),
+						move_amount = Math.min(move_amount, container.getMaxStackSize() - target_stack.getCount());
+						move_amount = Math.min(move_amount,
 								target_stack.getItem().getMaxStackSize(target_stack) - target_stack.getCount());
 					}
-					int move_amount = Math.min(held.getCount(), move_cap);
+
 					ItemStack stack = held.split(move_amount);
-					stack.setCount(move_amount + target_stack.getCount());
+					move_cap -= move_amount;
+					if (!target_stack.isEmpty()) {
+						stack.grow(target_stack.getCount());
+					}
 					container.setItem(slot, stack);
 					if (held.isEmpty()) {
 						held = ItemStack.EMPTY;
 						mob.targetBlock = from.get_blocks().findAny().get();
-						break;
+						goal.stop();
+						return;
+					} else if (move_cap <= 0) {
+						return;
 					}
 				}
 			}
@@ -247,7 +286,11 @@ public abstract class CrowdTask {
 			if (tag.contains("held_item")) {
 				held.deserializeNBT(tag.getCompound("held_item"));
 			}
-			return new MoveStuff(from, to, held);
+			int limit = -1;
+			if (tag.contains("limit")) {
+				limit = tag.getInt("limit");
+			}
+			return new MoveStuff(from, to, held, limit);
 		}
 
 		@Override
@@ -256,6 +299,7 @@ public abstract class CrowdTask {
 			tag.put("from_blocks", from.save_to_nbt());
 			tag.put("to_blocks", to.save_to_nbt());
 			tag.put("held_item", held.serializeNBT());
+			tag.putInt("limit", limit);
 			return tag;
 		}
 	}

@@ -29,7 +29,7 @@ public abstract class BlockSelector {
 	}
 
 	public static class Single extends BlockSelector {
-		public static String ID = "single";
+		public static final String ID = "single";
 		public BlockPos pos;
 
 		public Single(BlockPos pos) {

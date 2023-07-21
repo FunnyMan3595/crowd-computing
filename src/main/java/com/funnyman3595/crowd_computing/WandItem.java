@@ -58,8 +58,7 @@ public class WandItem extends Item {
 				entity.setPos(crowd_source.getX() + 0.5, crowd_source.getY() + 1, crowd_source.getZ() + 0.5);
 			}
 			entity.parent_pos = crowd_source;
-			entity.task = new CrowdTask.MoveStuff(new BlockSelector.Single(start), new BlockSelector.Single(pos),
-					ItemStack.EMPTY);
+			entity.task = new CrowdTask.MoveStuff(new BlockSelector.Single(start), new BlockSelector.Single(pos));
 			level.addFreshEntity(entity);
 			player.sendSystemMessage(Component.translatable("crowd_computing.wand_end"));
 		}
