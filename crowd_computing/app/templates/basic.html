@@ -1,0 +1,35 @@
+<html>
+  <head>
+  <title>{% block page_title %}{% endblock %} - Crowd Computing</title>
+  <style type="text/css" media="screen">
+    body {
+      background: #efe;
+    }
+    .cookie-bar {
+      position: fixed;
+      width: 100%;
+      bottom:0;
+      text-align:center;
+      height:25px;
+      line-height: 25px;
+      background: #eee;
+    }
+    form th {
+      vertical-align: top;
+      text-align: right;
+    }
+  </style>
+  </head>
+  <body>
+    <h1>{% block page_name %}{% endblock %}</h1>
+    {{ signin_message|safe }}<br/>
+    <br/>
+
+{% if me %}
+    {% block content %}{% endblock %}
+{% endif %}
+
+  <div class="cookie-bar">This site uses cookies to provide essential functionality, such as authentication and CSRF protection. <a href=/static/privacy.txt>Privacy policy</a></div>
+  </body>
+</html>
+ 

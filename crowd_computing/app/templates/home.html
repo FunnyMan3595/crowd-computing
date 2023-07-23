@@ -1,0 +1,25 @@
+{% extends "basic.html" %}
+{% block page_title %}Home{% endblock %}
+{% block page_name %}Crowd Computing{% endblock %}
+{% block content %}
+{% if my_shows %}
+<h3>Your shows:</h3>
+{% for show in my_shows %}
+    <a href=shows/{{ me.twitch_username }}/{{ show.name }}>{{ show.display_name|default:show.name }}</a><br/>
+{% endfor %}
+{% endif %}
+{% if known_shows %}
+<h3>Shows you've contributed to:</h3>
+{% for show in known_shows %}
+    <a href=shows/{{ show.host.twitch_username }}/{{ show.name }}>{{ show.display_name|default:show.name }} by {{ show.host.twitch_username }}</a><br/>
+{% endfor %}
+{% endif %}
+<h3>Start a Show?</h3>
+<form action="create_show" method="post">
+  {% csrf_token %}
+  <table>
+  {{ show_form }}
+  <tr><th></th><td><input type="submit" value="Start my Show!"></td></tr>
+  </table>
+</form>
+{% endblock %}

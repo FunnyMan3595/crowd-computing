@@ -1,0 +1,27 @@
+{% extends "basic.html" %}
+{% block page_title %}{{ show.display_name|default:show.name }} by {{ show.host.twitch_username }}{% endblock %}
+{% block page_name %}{{ show.display_name|default:show.name }} by {{ show.host.twitch_username }}{% endblock %}
+{% block content %}
+{% if me == host %}
+This is your show, <a href='manage'>click here</a> for the management interface.<br/>
+<br/>
+{% endif %}
+{% if miniconfigs %}
+<h3>Your Mini Configs</h3>
+{% for mc in miniconfigs %}
+<b>{{ mc.name }}</b><br/>
+source: {{ mc.source }}<br/>
+target: {{mc.target }}<br/>
+limit: {{mc.limit }}<br/>
+<br/>
+{% endfor %}
+{% endif %}
+<h3>Add a new Mini Config</h3>
+<form action="create_mc" method="post">
+  {% csrf_token %}
+  <table>
+  {{ mc_form }}
+  <tr><th></th><td><input type="submit" value="Create Config"></td></tr>
+  </table>
+</form>
+{% endblock %}

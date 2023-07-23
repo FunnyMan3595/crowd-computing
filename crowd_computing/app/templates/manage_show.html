@@ -1,0 +1,19 @@
+{% extends "basic.html" %}
+{% block page_title %}{{ show.display_name|default:show.name }} by {{ show.host.twitch_username }}{% endblock %}
+{% block page_name %}{{ show.display_name|default:show.name }} by {{ show.host.twitch_username }}{% endblock %}
+{% block content %}
+This is the management interface your show, <a href='../'>click here</a> for the viewer interface.<br/>
+<br/>
+<script>
+function doCopy() {
+  var field = document.getElementById("authSecret");
+  field.select();
+  field.setSelectionRange(0, 100);
+  navigator.clipboard.writeText(field.value);
+  document.getElementById("copiedNotice").style = "";
+}
+</script>
+<input type="text" value="{{ show.minecraft_auth_secret }}" style="display: none" id=authSecret>
+<button onclick="doCopy()">Copy Minecraft authentication secret
+<div style="display: none" id=copiedNotice>Copied!</div></button>
+{% endblock %}

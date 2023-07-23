@@ -1,0 +1,33 @@
+This is a DRAFT that represents my intent, however, the server is currently in development, and may not yet live up to these ideals.
+
+
+The Crowd Computing web server stores as little data as it can get away with.
+
+Terminology:
+- Show: This is Crowd Computing's name for a game of Minecraft that is linked to this web server.  It refers to both the linkage itself and the data stored on this server for the link.  A Minecraft server (includng singleplayer and LAN) may create a Show for each player.  A Show is identified by the Host's last-known Twitch username and a name of the Host's choice, and is available at https://crowd-computing.funnyman3595.com/shows/<username>/<show name>
+- Viewer: A user who has connected Twitch to this app.  Viewers can create, view, edit, and delete their Mini Configurations for any Show they have a link to, or for which they already have a Mini Configuration.  They can also become a Host by linking a Show.
+- Host: A Viewer who has at least one linked Show.  In addition to what they can do as a Viewer, they can also view, edit and delete their Shows.
+- Mini Configuration: The data that tells the Viewer's miniature what to do in the Host's Minecraft world.  Each Mini Configuration belongs to a specific Show.
+
+Cookies (both Viewer and Host):
+- csrftoken: Randomly-generated data, used to prevent CSRF attacks.
+- sessionid: Randomly-generated data, used to associate you with your server-side data.
+
+Viewer data stored on the server:
+- Your randomly-generated session ID.
+- OAuth data from Twitch, specifically:
+  - Opaque tokens provided by Twitch when you authorize this app, used to obtain and refresh the data below.
+  - Your Twitch username, used to identify you.
+  - Your numeric Twitch ID, used to keep your data tied to you if your username changes.
+- The Mini Configurations created by you in this app, used to configure your miniatures in the Host's Minecraft world.
+
+Host data stored on the server, per Show:
+- The name you gave the Show.
+- The randomly-generated Show Token, used to authenticate your Minecraft instance.
+- The location of each Crowd Source in your world, along with a map image of blocks in range, used to give your viewers an overview of yoour world.
+- The name, location, and size of regions defined by you with the Region Wand, used to allow your viewers to create Mini Configurations.
+
+
+You can delete all of the information about you from this web server by clicking the button at http://crowd-computing.funnyman3595.com/delete
+
+If you have a Mini Configuration for a Show, this data will be sent to the Host's Minecraft world on request, except for the OAuth tokens.  Once the data is sent, it's beyond my control; you'll have to contact the Host if you want to delete it.
