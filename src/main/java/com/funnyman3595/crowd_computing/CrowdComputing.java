@@ -11,6 +11,9 @@ import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.fml.loading.FMLPaths;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.common.capabilities.Capability;
+import net.minecraftforge.common.capabilities.CapabilityManager;
+import net.minecraftforge.common.capabilities.CapabilityToken;
 import net.minecraftforge.common.crafting.CraftingHelper;
 import net.minecraftforge.event.AddReloadListenerEvent;
 import net.minecraftforge.event.RegisterCommandsEvent;
@@ -74,6 +77,9 @@ public class CrowdComputing {
 			.create(ForgeRegistries.ENTITY_TYPES, MODID);
 	public static final RegistryObject<Item> NOTICE_ITEM = ITEMS.register("notice",
 			() -> new Item(new Item.Properties()));
+
+	public static final Capability<WebLink> WEB_LINK = CapabilityManager.get(new CapabilityToken<>() {
+	});
 
 	public CrowdComputing() {
 		ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, Config.COMMON.getRight());
@@ -225,7 +231,7 @@ public class CrowdComputing {
 		FMLJavaModLoadingContext.get().getModEventBus().addListener(this::clientSetup);
 		FMLJavaModLoadingContext.get().getModEventBus().addListener(this::registerAttributes);
 
-		WorksiteMessageChannel.init();
+		CrowdComputingChannel.init();
 
 		DistExecutor.safeRunWhenOn(Dist.CLIENT, () -> ClientOnly::init);
 	}

@@ -1,8 +1,13 @@
 package com.funnyman3595.crowd_computing;
 
+import java.util.function.Consumer;
+
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 
+import net.minecraft.Util;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.font.TextFieldHelper;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.network.chat.Component;
@@ -12,9 +17,56 @@ import net.minecraft.world.entity.player.Inventory;
 public class CrowdSourceBlockScreen extends AbstractContainerScreen<CrowdSourceBlockMenu> {
 	public static final ResourceLocation BG = new ResourceLocation(CrowdComputing.MODID,
 			"textures/gui/container/worksite.png");
+	public Button open_site;
+	public Button paste_secret;
 
 	public CrowdSourceBlockScreen(CrowdSourceBlockMenu menu, Inventory inventory, Component name) {
 		super(menu, inventory, name);
+	}
+
+	@Override
+	public void init() {
+		super.init();
+		open_site = new Button(10, 10, 100, 20, Component.translatable("crowd_computing.open_site"),
+				new InvokeCallback((button) -> {
+					Util.getPlatform().openUri("https://crowd-computing.funnyman3595.com/");
+				}));
+		addRenderableWidget(open_site);
+		paste_secret = make_paste_secret(false);
+		addRenderableWidget(paste_secret);
+	}
+
+	public Button make_paste_secret(boolean have_secret) {
+		Component paste_label = Component.translatable("crowd_computing.set_secret");
+		if (have_secret) {
+			paste_label = Component.translatable("crowd_computing.change_secret");
+		}
+
+		return new Button(10, 40, 100, 20, paste_label, new InvokeCallback((button) -> {
+			String clipboard = TextFieldHelper.getClipboardContents(minecraft);
+			if (clipboard.length() == 50) {
+				CrowdComputingChannel.INSTANCE.sendToServer(new CrowdComputingChannel.SetAuthSecret(clipboard));
+			}
+		}));
+	}
+
+	public void remake_paste_secret(boolean have_secret) {
+		removeWidget(paste_secret);
+		paste_secret = make_paste_secret(have_secret);
+		addRenderableWidget(paste_secret);
+	}
+
+	public class InvokeCallback implements Button.OnPress {
+		private Consumer<Button> callback;
+
+		public InvokeCallback(Consumer<Button> callback) {
+			this.callback = callback;
+		}
+
+		@Override
+		public void onPress(Button button) {
+			callback.accept(button);
+		}
 	}
 
 	@Override

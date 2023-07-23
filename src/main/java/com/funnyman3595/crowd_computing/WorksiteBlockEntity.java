@@ -510,8 +510,8 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 			for (Player player : entity.players_in_gui) {
 				connection_list.add(((ServerPlayer) player).connection.connection);
 			}
-			WorksiteMessageChannel.INSTANCE.send(PacketDistributor.NMLIST.with(() -> connection_list),
-					new WorksiteMessageChannel.WorksiteMessagePacket(message));
+			CrowdComputingChannel.INSTANCE.send(PacketDistributor.NMLIST.with(() -> connection_list),
+					new CrowdComputingChannel.WorksiteMessagePacket(message));
 		}
 
 		if (!entity.tryGetWorker()) {

@@ -40,6 +40,9 @@ public class CrowdSourceBlockEntity extends BlockEntity implements MenuProvider,
 	public HashMap<WorksiteBlockEntity, CrowdMemberEntity> spawned_workers = new HashMap<WorksiteBlockEntity, CrowdMemberEntity>();
 	public HashMap<BlockPos, UUID> spawned_worker_ids = new HashMap<BlockPos, UUID>();
 
+	public HashMap<String, CrowdMemberEntity> spawned_movers = new HashMap<String, CrowdMemberEntity>();
+	public HashMap<String, UUID> spawned_mover_ids = new HashMap<String, UUID>();
+
 	public ContainerData crowd_source_data = new ContainerData() {
 		@Override
 		public int get(int index) {
@@ -209,5 +212,59 @@ public class CrowdSourceBlockEntity extends BlockEntity implements MenuProvider,
 			}
 		}
 		requested_workers.add(worksite);
+	}
+
+	public void requestSpawn(Player player) {
+		if (level.isClientSide) {
+			return;
+		}
+
+		WebLink.get(player).get_all((configs) -> {
+			for (WebLink.MiniConfig config : configs.configs()) {
+				if (config.source() == null || config.target() == null) {
+					continue;
+				}
+				String full_name = config.full_name();
+				if (spawned_movers.containsKey(full_name)) {
+					CrowdMemberEntity mover = spawned_movers.get(full_name);
+					if (mover.isDeadOrDying() || mover.isRemoved()) {
+						spawned_movers.remove(full_name);
+						spawned_mover_ids.remove(full_name);
+						setChanged();
+					} else {
+						continue;
+					}
+				}
+				if (spawned_mover_ids.containsKey(full_name)) {
+					Entity raw_mover = ((ServerLevel) level).getEntity(spawned_mover_ids.get(full_name));
+					if (raw_mover == null || !(raw_mover instanceof CrowdMemberEntity) || raw_mover.isRemoved()) {
+						spawned_mover_ids.remove(full_name);
+						setChanged();
+					} else {
+						CrowdMemberEntity mover = (CrowdMemberEntity) raw_mover;
+						if (mover.isDeadOrDying()) {
+							spawned_mover_ids.remove(full_name);
+							setChanged();
+						} else {
+							spawned_movers.put(full_name, mover);
+							continue;
+						}
+					}
+				}
+
+				CrowdMemberEntity mover = new CrowdMemberEntity(CrowdMemberEntity.TYPE, level);
+				mover.parent_pos = getBlockPos();
+				mover.absMoveTo(getBlockPos().getX() + 0.5, getBlockPos().getY() + 1, getBlockPos().getZ() + 0.5);
+				mover.task = new CrowdTask.MoveStuff(config.source(), config.target(), ItemStack.EMPTY, config.limit());
+				mover.setGameProfile(config.viewer());
+				level.addFreshEntity(mover);
+
+				spawned_movers.put(full_name, mover);
+				spawned_mover_ids.put(full_name, mover.getUUID());
+				setChanged();
+			}
+		}, error -> {
+			player.sendSystemMessage(Component.translatable("crowd_computing.link_failed", error));
+		});
 	}
 }

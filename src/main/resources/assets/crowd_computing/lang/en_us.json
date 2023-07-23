@@ -33,8 +33,9 @@
   "crowd_computing.direction.left" : "to the left",
   "crowd_computing.direction.right" : "to the right",
   "crowd_computing.extra_requirements" : "Additional requirements:",
-  "crowd_computing.wand_source" : "Bound to Crowd Source.",
-  "crowd_computing.wand_start" : "Source block selected.",
-  "crowd_computing.wand_end" : "Spawning crowd member.",
-  "crowd_computing.wand_clear" : "Cleared source block."
+  "crowd_computing.wand_start" : "Start block selected.",
+  "crowd_computing.wand_clear" : "Cleared start block.",
+  "crowd_computing.region_created" : "Region %s has been created.",
+  "crowd_computing.link_failed" : "Unable to contact Crowd Computing server: %s",
+  "crowd_computing.wand_missing" : "Can't find your wand.  Keep it in your hand until the region is created."
 }

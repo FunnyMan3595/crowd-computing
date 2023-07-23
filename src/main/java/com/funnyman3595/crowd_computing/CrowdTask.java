@@ -2,10 +2,12 @@ package com.funnyman3595.crowd_computing;
 
 import java.util.HashMap;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.Container;
 import net.minecraft.world.WorldlyContainer;
 import net.minecraft.world.entity.ai.goal.Goal;
@@ -144,8 +146,8 @@ public abstract class CrowdTask {
 
 	public static class MoveStuff extends CrowdTask {
 		public static final String ID = "move_stuff";
-		public BlockSelector from;
-		public BlockSelector to;
+		public BlockSelector source;
+		public BlockSelector target;
 		public ItemStack held;
 		public int limit;
 
@@ -158,33 +160,55 @@ public abstract class CrowdTask {
 		}
 
 		public MoveStuff(BlockSelector from, BlockSelector to, ItemStack held, int limit) {
-			this.from = from;
-			this.to = to;
+			this.source = from;
+			this.target = to;
 			this.held = held;
 			this.limit = limit;
+		}
+
+		public static BlockPos get_random_block(BlockSelector selector, RandomSource rand) {
+			Stream<BlockPos> stream = selector.get_blocks();
+			if (selector.get_block_count() == 0) {
+				return null;
+			}
+			if (selector.get_block_count() == 1) {
+				return stream.findAny().get();
+			}
+			stream = stream.skip(rand.nextInt((selector.get_block_count())));
+			return stream.findFirst().get();
 		}
 
 		@Override
 		public void init(CrowdMemberEntity mob) {
 			if (held.isEmpty()) {
-				mob.targetBlock = from.get_blocks().findAny().get();
+				mob.targetBlock = source.get_blocks().findAny().get();
 			} else {
-				mob.targetBlock = to.get_blocks().findAny().get();
+				mob.targetBlock = target.get_blocks().findAny().get();
 			}
 		}
 
 		@Override
 		public void run(CrowdMemberEntity mob, Goal goal) {
+			if (!mob.level.isLoaded(mob.targetBlock)) {
+				return;
+			}
+
+			BlockEntity entity = mob.level.getBlockEntity(mob.targetBlock);
+			if (entity == null || !(entity instanceof Container)) {
+				if (held.isEmpty()) {
+					mob.targetBlock = get_random_block(source, mob.level.random);
+				} else {
+					mob.targetBlock = get_random_block(target, mob.level.random);
+				}
+				return;
+			}
+
 			if (!mob.targetBlock.closerToCenterThan(mob.position(), CrowdMemberEntity.CLOSE_TO_BLOCK_DISTANCE)) {
 				goal.stop();
 				return;
 			}
+
 			if (held.isEmpty()) {
-				BlockEntity entity = mob.level.getBlockEntity(mob.targetBlock);
-				if (entity == null || !(entity instanceof Container)) {
-					mob.kill();
-					return;
-				}
 				WorldlyContainer container;
 				if (entity instanceof WorldlyContainer) {
 					container = (WorldlyContainer) entity;
@@ -201,17 +225,11 @@ public abstract class CrowdTask {
 					}
 					held = container.removeItem(slot, stack.getCount());
 					if (!held.isEmpty()) {
-						mob.targetBlock = to.get_blocks().findAny().get();
-						goal.stop();
+						mob.targetBlock = get_random_block(target, mob.level.random);
 						return;
 					}
 				}
 			} else {
-				BlockEntity entity = mob.level.getBlockEntity(mob.targetBlock);
-				if (entity == null || !(entity instanceof Container)) {
-					mob.kill();
-					return;
-				}
 				WorldlyContainer container;
 				if (entity instanceof WorldlyContainer) {
 					container = (WorldlyContainer) entity;
@@ -231,6 +249,7 @@ public abstract class CrowdTask {
 					move_cap = Math.min(move_cap, limit - already_present);
 				}
 				if (move_cap <= 0) {
+					mob.targetBlock = get_random_block(target, mob.level.random);
 					return;
 				}
 				for (int slot : container.getSlotsForFace(Direction.UP)) {
@@ -264,10 +283,10 @@ public abstract class CrowdTask {
 					container.setItem(slot, stack);
 					if (held.isEmpty()) {
 						held = ItemStack.EMPTY;
-						mob.targetBlock = from.get_blocks().findAny().get();
-						goal.stop();
+						mob.targetBlock = get_random_block(source, mob.level.random);
 						return;
 					} else if (move_cap <= 0) {
+						mob.targetBlock = get_random_block(target, mob.level.random);
 						return;
 					}
 				}
@@ -296,8 +315,8 @@ public abstract class CrowdTask {
 		@Override
 		public CompoundTag save_to_nbt() {
 			CompoundTag tag = super.save_to_nbt();
-			tag.put("from_blocks", from.save_to_nbt());
-			tag.put("to_blocks", to.save_to_nbt());
+			tag.put("from_blocks", source.save_to_nbt());
+			tag.put("to_blocks", target.save_to_nbt());
 			tag.put("held_item", held.serializeNBT());
 			tag.putInt("limit", limit);
 			return tag;
