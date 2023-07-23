@@ -1,6 +1,6 @@
 {% extends "basic.html" %}
-{% block page_title %}{{ show.display_name|default:show.name }} by {{ show.host.twitch_username }}{% endblock %}
-{% block page_name %}{{ show.display_name|default:show.name }} by {{ show.host.twitch_username }}{% endblock %}
+{% block page_title %}{% if show %}{{ show.display_name|default:show.name }} by {{ show.host.twitch_username }}{% endif %}{% endblock %}
+{% block page_name %}{% if show %}{{ show.display_name|default:show.name }} by {{ show.host.twitch_username }}{{show}}{% endif %}{% endblock %}
 {% block content %}
 {% if me == host %}
 This is your show, <a href='manage'>click here</a> for the management interface.<br/>
