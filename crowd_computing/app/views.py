@@ -98,18 +98,18 @@ class ShowView(TemplateView):
     template_name = "show.html"
 
     @with_oauth_signin
-    def get(self, request, context, viewer, host, show):
-        context["host"] = get_object_or_404(Viewer, twitch_username=host)
-        context["show"] = get_object_or_404(Show, host=context["host"], name=show)
+    def get(self, request, context, viewer, host_name, show_name):
+        context["host"] = get_object_or_404(Viewer, twitch_username=host_name)
+        context["show"] = get_object_or_404(Show, host=context["host"], name=show_name)
         context["me"] = viewer
         context["miniconfigs"] = MiniConfig.objects.filter(show=context["show"], viewer=context["me"])
         context["mc_form"] = MCForm()
 
 class CreateMC(TemplateView):
     @with_oauth_signin
-    def post(self, request, context, viewer, host, show):
-        context["host"] = get_object_or_404(Viewer, twitch_username=host)
-        context["show"] = get_object_or_404(Show, host=context["host"], name=show)
+    def post(self, request, context, viewer, host_name, show_name):
+        context["host"] = get_object_or_404(Viewer, twitch_username=host_name)
+        context["show"] = get_object_or_404(Show, host=context["host"], name=show_name)
         mc = MiniConfig(show=context["show"], viewer=viewer)
         form = MCForm(request.POST, instance=mc)
         if form.is_valid():
@@ -120,9 +120,9 @@ class ManageShowView(TemplateView):
     template_name = "manage_show.html"
 
     @with_oauth_signin
-    def get(self, request, context, viewer, host, show):
-        context["host"] = get_object_or_404(Viewer, twitch_username=host)
-        context["show"] = get_object_or_404(Show, host=context["host"], name=show)
+    def get(self, request, context, viewer, host_name, show_name):
+        context["host"] = get_object_or_404(Viewer, twitch_username=host_name)
+        context["show"] = get_object_or_404(Show, host=context["host"], name=show_name)
         context["me"] = viewer
         if context["me"] != context["host"]:
             raise Redirect("../")

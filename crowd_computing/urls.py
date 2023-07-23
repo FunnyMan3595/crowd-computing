@@ -18,9 +18,9 @@ from crowd_computing.app import views
 
 urlpatterns = [
         path('', views.Home.as_view(), name='home'),
-        path('shows/<host>/<show>/', views.ShowView.as_view(), name='show'),
-        path('shows/<host>/<show>/create_mc', views.CreateMC.as_view(), name='create_mcshow'),
-        path('shows/<host>/<show>/manage/', views.ManageShowView.as_view(), name='manage_show'),
+        path('shows/<host_name>/<show_name>/', views.ShowView.as_view(), name='show'),
+        path('shows/<host_name>/<show_name>/create_mc', views.CreateMC.as_view(), name='create_mcshow'),
+        path('shows/<host_name>/<show_name>/manage/', views.ManageShowView.as_view(), name='manage_show'),
         path('minecraft/<method>', views.MinecraftView.as_view(), name='minecraft'),
         path('create_show', views.CreateShow.as_view(), name='create_show'),
         path('login', views.login, name='login'),
