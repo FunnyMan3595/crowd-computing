@@ -16,7 +16,7 @@ import net.minecraft.world.entity.player.Inventory;
 
 public class CrowdSourceBlockScreen extends AbstractContainerScreen<CrowdSourceBlockMenu> {
 	public static final ResourceLocation BG = new ResourceLocation(CrowdComputing.MODID,
-			"textures/gui/container/worksite.png");
+			"textures/gui/container/crowd_source.png");
 	public Button open_site;
 	public Button paste_secret;
 
@@ -27,7 +27,10 @@ public class CrowdSourceBlockScreen extends AbstractContainerScreen<CrowdSourceB
 	@Override
 	public void init() {
 		super.init();
-		open_site = new Button(10, 10, 100, 20, Component.translatable("crowd_computing.open_site"),
+		int i = (width - imageWidth) / 2;
+		int j = (height - imageHeight) / 2;
+		open_site = new Button(i + 5, j + 20, 166, 20,
+				Component.translatable("crowd_computing.open_site"),
 				new InvokeCallback((button) -> {
 					Util.getPlatform().openUri("https://crowd-computing.funnyman3595.com/");
 				}));
@@ -42,7 +45,9 @@ public class CrowdSourceBlockScreen extends AbstractContainerScreen<CrowdSourceB
 			paste_label = Component.translatable("crowd_computing.change_secret");
 		}
 
-		return new Button(10, 40, 100, 20, paste_label, new InvokeCallback((button) -> {
+		int i = (width - imageWidth) / 2;
+		int j = (height - imageHeight) / 2;
+		return new Button(i+5, j+45, 166, 20, paste_label, new InvokeCallback((button) -> {
 			String clipboard = TextFieldHelper.getClipboardContents(minecraft);
 			if (clipboard.length() == 50) {
 				CrowdComputingChannel.INSTANCE.sendToServer(new CrowdComputingChannel.SetAuthSecret(clipboard));

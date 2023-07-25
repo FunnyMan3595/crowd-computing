@@ -82,15 +82,15 @@ public abstract class BlockSelector {
 		}
 
 		public int x_size() {
-			return Math.abs(start.getX() - end.getX() + 1);
+			return Math.abs(start.getX() - end.getX()) + 1;
 		}
 
 		public int y_size() {
-			return Math.abs(start.getY() - end.getY() + 1);
+			return Math.abs(start.getY() - end.getY()) + 1;
 		}
 
 		public int z_size() {
-			return Math.abs(start.getZ() - end.getZ() + 1);
+			return Math.abs(start.getZ() - end.getZ()) + 1;
 		}
 
 		public int size() {

@@ -169,7 +169,7 @@ public abstract class CrowdTask {
 		public static BlockPos get_random_block(BlockSelector selector, RandomSource rand) {
 			Stream<BlockPos> stream = selector.get_blocks();
 			if (selector.get_block_count() == 0) {
-				return null;
+				return BlockPos.ZERO;
 			}
 			if (selector.get_block_count() == 1) {
 				return stream.findAny().get();
@@ -181,14 +181,25 @@ public abstract class CrowdTask {
 		@Override
 		public void init(CrowdMemberEntity mob) {
 			if (held.isEmpty()) {
-				mob.targetBlock = source.get_blocks().findAny().get();
-			} else {
-				mob.targetBlock = target.get_blocks().findAny().get();
+				if (held.isEmpty()) {
+					mob.targetBlock = get_random_block(source, mob.level.random);
+				} else {
+					mob.targetBlock = get_random_block(target, mob.level.random);
+				}
 			}
 		}
 
 		@Override
 		public void run(CrowdMemberEntity mob, Goal goal) {
+			if (mob.targetBlock == null) {
+				if (held.isEmpty()) {
+					mob.targetBlock = get_random_block(source, mob.level.random);
+				} else {
+					mob.targetBlock = get_random_block(target, mob.level.random);
+				}
+				return;
+			}
+
 			if (!mob.level.isLoaded(mob.targetBlock)) {
 				return;
 			}

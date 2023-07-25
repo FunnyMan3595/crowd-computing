@@ -73,5 +73,7 @@ public class WandItem extends Item {
 		}, (e) -> {
 			player.sendSystemMessage(Component.translatable("crowd_computing.link_failed", e));
 		});
+		start = null;
+		end = null;
 	}
 }

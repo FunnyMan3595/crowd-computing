@@ -1,6 +1,7 @@
 package com.funnyman3595.crowd_computing;
 
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -53,5 +54,11 @@ public class CrowdSourceBlockMenu extends AbstractContainerMenu {
 	@Override
 	public ItemStack quickMoveStack(Player p_38941_, int p_38942_) {
 		return null;
+	}
+
+	@Override
+	public void sendAllDataToRemote() {
+		super.sendAllDataToRemote();
+		WebLink.get(player).send_auth_secret_ack((ServerPlayer) player);
 	}
 }

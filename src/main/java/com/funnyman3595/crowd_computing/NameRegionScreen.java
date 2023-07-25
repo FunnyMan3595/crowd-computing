@@ -14,14 +14,14 @@ public class NameRegionScreen extends Screen {
 	public static final ResourceLocation BG = new ResourceLocation(CrowdComputing.MODID,
 			"textures/gui/name_region.png");
 	public static final int imageWidth = 150;
-	public static final int imageHeight = 50;
+	public static final int imageHeight = 35;
 	public EditBox name;
 	public boolean saved = false;
 
 	protected NameRegionScreen() {
 		super(Component.translatable("crowd_computing.name_region"));
 	}
-	
+
 	@Override
 	protected void init() {
 		super.init();
@@ -29,7 +29,7 @@ public class NameRegionScreen extends Screen {
 		this.minecraft.keyboardHandler.setSendRepeatsToGui(true);
 		int i = (width - imageWidth) / 2;
 		int j = (height - imageHeight) / 2;
-		name = new EditBox(font, i + 62, j + 24, 103, 12, Component.translatable("container.repair"));
+		name = new EditBox(font, i + 5, j + 20, 134, 12, Component.translatable("crowd_computing.name_region"));
 		name.setCanLoseFocus(false);
 		name.setTextColor(-1);
 		name.setTextColorUneditable(-1);
@@ -72,8 +72,11 @@ public class NameRegionScreen extends Screen {
 
 	public void renderFg(PoseStack stack, int mouse_x, int mouse_y, float unused) {
 		this.name.render(stack, mouse_x, mouse_y, unused);
+		int i = (width - imageWidth) / 2;
+		int j = (height - imageHeight) / 2;
+		font.draw(stack, title, i + 5, j + 5, 4210752);
 	}
-	
+
 	@Override
 	public void removed() {
 		if (saved) {

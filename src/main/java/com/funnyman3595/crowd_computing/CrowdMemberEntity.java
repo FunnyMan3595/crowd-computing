@@ -145,7 +145,7 @@ public class CrowdMemberEntity extends MiniMeEntity implements WorksiteBlockEnti
 
 		@Override
 		public boolean canUse() {
-			return mob.targetBlock == BlockPos.ZERO;
+			return mob.targetBlock == null || mob.targetBlock == BlockPos.ZERO;
 		}
 
 		@Override
@@ -173,8 +173,8 @@ public class CrowdMemberEntity extends MiniMeEntity implements WorksiteBlockEnti
 
 		@Override
 		public boolean canUse() {
-			return mob.targetBlock != BlockPos.ZERO
-					&& mob.targetBlock.closerToCenterThan(mob.position(), CLOSE_TO_BLOCK_DISTANCE);
+			return mob.targetBlock == null || (mob.targetBlock != BlockPos.ZERO
+					&& mob.targetBlock.closerToCenterThan(mob.position(), CLOSE_TO_BLOCK_DISTANCE));
 		}
 
 		@Override
@@ -203,7 +203,7 @@ public class CrowdMemberEntity extends MiniMeEntity implements WorksiteBlockEnti
 
 		@Override
 		public boolean canUse() {
-			return mob.targetBlock != BlockPos.ZERO
+			return mob.targetBlock != null && mob.targetBlock != BlockPos.ZERO
 					&& !mob.targetBlock.closerToCenterThan(mob.position(), CLOSE_TO_BLOCK_DISTANCE);
 		}
 
@@ -214,7 +214,7 @@ public class CrowdMemberEntity extends MiniMeEntity implements WorksiteBlockEnti
 
 		@Override
 		public void tick() {
-			if (mob.level.isClientSide) {
+			if (mob.level.isClientSide || mob.targetBlock == null) {
 				return;
 			}
 
