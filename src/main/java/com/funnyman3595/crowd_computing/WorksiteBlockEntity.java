@@ -33,7 +33,6 @@ import net.minecraft.world.inventory.StackedContentsCompatible;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BaseContainerBlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.network.PacketDistributor;
@@ -453,33 +452,7 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 	}
 
 	public void requestWorker() {
-		if (!CrowdSourceBlockEntity.known_sources.containsKey(level)) {
-			return;
-		}
-
-		double best_distance_sq = Math.pow(CrowdSourceBlockEntity.MAX_RANGE, 2) + 1;
-		CrowdSourceBlockEntity best_source = null;
-		ObjectArrayList<BlockPos> bad_positions = new ObjectArrayList<BlockPos>();
-		for (BlockPos pos : CrowdSourceBlockEntity.known_sources.get(level)) {
-			double distance_sq = pos.distSqr(getBlockPos());
-			if (distance_sq < best_distance_sq && level.isLoaded(getBlockPos())) {
-				BlockEntity raw_source = level.getBlockEntity(pos);
-				if (raw_source == null || !(raw_source instanceof CrowdSourceBlockEntity)) {
-					bad_positions.add(pos);
-				} else {
-					CrowdSourceBlockEntity source = (CrowdSourceBlockEntity) raw_source;
-					if (source.range >= Math.sqrt(distance_sq)) {
-						best_distance_sq = distance_sq;
-						best_source = source;
-					}
-				}
-			}
-		}
-		if (bad_positions.size() > 0) {
-			for (BlockPos pos : bad_positions) {
-				CrowdSourceBlockEntity.known_sources.get(level).remove(pos);
-			}
-		}
+		CrowdSourceBlockEntity best_source = CrowdSourceBlockEntity.get_closest_loaded_in_range(level, getBlockPos());
 
 		if (best_source != null) {
 			best_source.requestSpawn(this);

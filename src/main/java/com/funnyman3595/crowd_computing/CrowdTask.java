@@ -191,7 +191,7 @@ public abstract class CrowdTask {
 
 		@Override
 		public void run(CrowdMemberEntity mob, Goal goal) {
-			if (mob.targetBlock == null) {
+			if (mob.targetBlock == null || mob.targetBlock == BlockPos.ZERO) {
 				if (held.isEmpty()) {
 					mob.targetBlock = get_random_block(source, mob.level.random);
 				} else {

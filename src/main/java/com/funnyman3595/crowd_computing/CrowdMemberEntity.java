@@ -122,6 +122,10 @@ public class CrowdMemberEntity extends MiniMeEntity implements WorksiteBlockEnti
 			}
 
 			if (mob.parent != null && !mob.parent.isRemoved()) {
+				if (CrowdSourceBlockEntity.chessboard_distance(mob.parent_pos, mob.position()) > mob.parent.range
+						+ 0.125) {
+					mob.task = CrowdTask.DIE;
+				}
 				return;
 			}
 

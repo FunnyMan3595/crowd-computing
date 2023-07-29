@@ -6,13 +6,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.GsonHelper;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.Nameable;
@@ -26,6 +26,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.registries.RegistryObject;
 
 public class CrowdSourceBlockEntity extends BlockEntity implements MenuProvider, Nameable {
@@ -267,5 +268,77 @@ public class CrowdSourceBlockEntity extends BlockEntity implements MenuProvider,
 		}, error -> {
 			player.sendSystemMessage(Component.translatable("crowd_computing.link_failed", error));
 		});
+	}
+
+	public static int chessboard_distance(BlockPos a, BlockPos b) {
+		return Math.max(Math.abs(a.getX() - b.getX()),
+				Math.max(Math.abs(a.getY() - b.getY()), Math.abs(a.getZ() - b.getZ())));
+	}
+
+	public static double chessboard_distance(BlockPos a, Vec3 b) {
+		return Math.max(Math.abs(a.getX() - b.x), Math.max(Math.abs(a.getY() - b.y), Math.abs(a.getZ() - b.z)));
+	}
+
+	public static CrowdSourceBlockEntity get_closest_loaded_in_range(Level level, BlockPos blockPos) {
+		if (!known_sources.containsKey(level)) {
+			return null;
+		}
+
+		double best_distance = MAX_RANGE + 1;
+		CrowdSourceBlockEntity best_source = null;
+		ObjectArrayList<BlockPos> bad_positions = new ObjectArrayList<BlockPos>();
+		for (BlockPos pos : known_sources.get(level)) {
+			double distance = chessboard_distance(pos, blockPos);
+			if (distance < best_distance && level.isLoaded(blockPos)) {
+				BlockEntity raw_source = level.getBlockEntity(pos);
+				if (raw_source == null || !(raw_source instanceof CrowdSourceBlockEntity)) {
+					bad_positions.add(pos);
+				} else {
+					CrowdSourceBlockEntity source = (CrowdSourceBlockEntity) raw_source;
+					if (source.range >= distance) {
+						best_distance = distance;
+						best_source = source;
+					}
+				}
+			}
+		}
+		if (bad_positions.size() > 0) {
+			for (BlockPos pos : bad_positions) {
+				known_sources.get(level).remove(pos);
+			}
+		}
+
+		return best_source;
+	}
+
+	public static ObjectArrayList<CrowdSourceBlockEntity> get_loaded_in_range(Level level, BlockPos blockPos) {
+		ObjectArrayList<CrowdSourceBlockEntity> in_range = new ObjectArrayList<CrowdSourceBlockEntity>();
+		if (!known_sources.containsKey(level)) {
+			return in_range;
+		}
+
+		double max_distance = MAX_RANGE;
+		ObjectArrayList<BlockPos> bad_positions = new ObjectArrayList<BlockPos>();
+		for (BlockPos pos : known_sources.get(level)) {
+			double distance = chessboard_distance(pos, blockPos);
+			if (distance < max_distance && level.isLoaded(blockPos)) {
+				BlockEntity raw_source = level.getBlockEntity(pos);
+				if (raw_source == null || !(raw_source instanceof CrowdSourceBlockEntity)) {
+					bad_positions.add(pos);
+				} else {
+					CrowdSourceBlockEntity source = (CrowdSourceBlockEntity) raw_source;
+					if (source.range >= distance) {
+						in_range.add(source);
+					}
+				}
+			}
+		}
+		if (bad_positions.size() > 0) {
+			for (BlockPos pos : bad_positions) {
+				known_sources.get(level).remove(pos);
+			}
+		}
+
+		return in_range;
 	}
 }
