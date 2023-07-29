@@ -64,6 +64,8 @@
     }
   }
   </script>
+  {% load static %}
+    <script type="module" src="{% static 'main.js' %}"></script>
   </head>
   <body>
     <h1>{% block page_name %}{% endblock %}</h1>

@@ -1,0 +1,25 @@
+{
+  "name": "crowd_computing",
+  "version": "1.0.0",
+  "description": "Crowd Computing web files",
+  "main": "crowd_computing/app/js/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/FunnyMan3595/crowd-computing.git"
+  },
+  "author": "FunnyMan3595 (Charlie Nolan)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/FunnyMan3595/crowd-computing/issues"
+  },
+  "homepage": "https://github.com/FunnyMan3595/crowd-computing#readme",
+  "devDependencies": {
+  },
+  "dependencies": {
+    "@leavittsoftware/titanium-chip": "^6.0.1",
+    "@material/web": "^1.0.0-pre.14"
+  }
+}

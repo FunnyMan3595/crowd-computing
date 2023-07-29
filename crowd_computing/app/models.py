@@ -12,13 +12,16 @@ class UrlSafeCharField(models.CharField):
         return value.replace(" ", "_")
 
 class Viewer(models.Model):
-    twitch_username = UrlSafeCharField(max_length=30)
+    twitch_username = UrlSafeCharField(max_length=30, unique=True)
     twitch_id = models.IntegerField()
 
     def __str__(self):
         return self.twitch_username
 
 class Show(models.Model):
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=("host", "name"), name="unique_show_identifier")]
+
     host = models.ForeignKey(Viewer, on_delete=models.CASCADE)
     name = UrlSafeCharField(max_length=30)
     display_name = models.CharField(max_length=100, null=True, blank=True)
@@ -28,6 +31,9 @@ class Show(models.Model):
         return self.display_name
 
 class CrowdSource(models.Model):
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=("show", "x", "y", "z"), name="unique_crowd_source_identifier")]
+
     show = models.ForeignKey(Show, on_delete=models.CASCADE)
     x = models.IntegerField()
     y = models.IntegerField()
@@ -38,6 +44,9 @@ class CrowdSource(models.Model):
         return "(%d, %d, %d)" % (x, y, z)
 
 class Region(models.Model):
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=("show", "name"), name="unique_region_identifier")]
+
     show = models.ForeignKey(Show, on_delete=models.CASCADE)
     name = models.CharField(max_length=100)
     start_x = models.IntegerField()
@@ -61,6 +70,9 @@ class Region(models.Model):
         }
 
 class MiniConfig(models.Model):
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=("show", "viewer", "name"), name="unique_miniconfig_identifier")]
+
     show = models.ForeignKey(Show, on_delete=models.CASCADE)
     viewer = models.ForeignKey(Viewer, on_delete=models.CASCADE)
     name = UrlSafeCharField(max_length=30)
