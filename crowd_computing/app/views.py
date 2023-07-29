@@ -42,7 +42,7 @@ def with_oauth_signin(func):
     def wrapper(self, request, *args, **kwargs):
         context = self.get_context_data(**kwargs)
         if "viewer_id" not in request.session:
-            context["signin_message"] = '<a href="#" onClick=\'login_window=window.open("/login","login_window","width=500,height=800"); login_window.opener=window; return false;\'>Click here to sign in!</a>'
+            context["signin_message"] = '<a href="/login" target="_blank" rel="opener" onclick="ready_refresh(); return true">Click here to sign in!</a>'
         else:
             try:
                 viewer = Viewer.objects.get(pk=request.session["viewer_id"])
@@ -206,7 +206,7 @@ def oauth_return(request):
         )
         viewer.save()
         request.session["viewer_id"] = viewer.pk
-    return HttpResponse("<body onload='window.opener.location.reload(false); window.close()'></body>")
+    return HttpResponse('<body onload="window.close()"></body>')
 
 def delete(request):
     if request.method != "POST":
@@ -214,7 +214,7 @@ def delete(request):
     else:
         if "viewer_id" not in request.session:
             request.session.flush()
-            return HttpResponse("You weren't signed in, so only your session has been deleted.  Goodbye!")
+            return HttpResponse("You weren't signed in, so only your session has been deleted.  If you want to delete signed-in data, please sign in, then come back here.  Goodbye!")
         try:
             viewer = Viewer.objects.get(pk=request.session["viewer_id"])
             viewer.delete()
@@ -222,4 +222,4 @@ def delete(request):
             return HttpResponse("Everything deleted.  Goodbye!")
         except Viewer.DoesNotExist:
             request.session.flush()
-            return HttpResponse("You didn't have a valid signin, so only your session has been deleted.  Goodbye!")
+            return HttpResponse("You didn't have a valid signin, so only your session has been deleted.  If you want to delete signed-in data, please sign in, then come back here.  Goodbye!")

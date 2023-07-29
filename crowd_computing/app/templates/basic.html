@@ -52,6 +52,9 @@
     }
   </style>
   <script>
+  function ready_refresh() {
+    addEventListener("focus", (event) => { window.location.reload(true) });
+  }
   function collapse(elem) {
     let open = elem.classList.toggle("open");
     let collapsed = elem.nextElementSibling;

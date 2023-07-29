@@ -25,6 +25,7 @@ with open('/etc/django/secret_key') as f:
 DEBUG = False
 
 ALLOWED_HOSTS = ["crowd-computing.funnyman3595.com", "localhost"]
+CSRF_TRUSTED_ORIGINS = ["https://crowd-computing.funnyman3595.com"]
 
 # Application definition
 
