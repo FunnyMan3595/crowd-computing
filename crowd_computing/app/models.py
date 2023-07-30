@@ -26,6 +26,7 @@ class Show(models.Model):
     name = UrlSafeCharField(max_length=30)
     display_name = models.CharField(max_length=100, null=True, blank=True)
     minecraft_auth_secret = models.CharField(max_length=100)
+    last_update = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.display_name
@@ -38,6 +39,7 @@ class CrowdSource(models.Model):
     x = models.IntegerField()
     y = models.IntegerField()
     z = models.IntegerField()
+    range = models.IntegerField()
     minimap = models.BinaryField(max_length=100*1024)
 
     def __str__(self):

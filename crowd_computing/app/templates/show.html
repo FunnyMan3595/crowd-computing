@@ -6,6 +6,113 @@
 This is your show, <a href='manage'>click here</a> for the management interface.<br/>
 <br/>
 {% endif %}
+<h3 class="collapser" onclick="collapse(this)">Minimap</h3>
+<div class="collapsed" id="minimap_holder">
+<canvas width=400 height=400 id="minimap"></canvas>
+</div>
+<script>
+let minimap = document.getElementById("minimap");
+let ctx = minimap.getContext("2d");
+let images = {};
+let minimap_holder = document.getElementById("minimap_holder");
+let update_interval = null;
+let last_etag = null;
+let crowd_sources = [];
+let zoom_x = null;
+let zoom_z = null;
+let zoom_scale = null;
+
+async function update_minimap() {
+  let headers = {};
+  if (last_etag !== null) {
+    headers["If-None-Match"] = '"' + last_etag + '"';
+  }
+  const response = await fetch("minimaps/metadata", { headers: headers });
+  if (response.status == 304) {
+    return;
+  }
+  if (response.status != 200) {
+    console.log("Minimap refresh failed: ", response);
+    return;
+  }
+
+  let parsed = await response.json();
+  last_etag = parsed["etag"];
+  crowd_sources = parsed["crowd_sources"];
+  if (crowd_sources.length == 0) {
+    return;
+  }
+
+  if (zoom_scale === null) {
+    let overall_x_min = crowd_sources[0].x - crowd_sources[0].range;
+    let overall_z_min = crowd_sources[0].z - crowd_sources[0].range;
+    let overall_x_max = crowd_sources[0].x + crowd_sources[0].range;
+    let overall_z_max = crowd_sources[0].z + crowd_sources[0].range;
+
+    for (let crowd_source of crowd_sources) {
+      let x_min = crowd_source.x - crowd_source.range;
+      if (overall_x_min > x_min) {
+        overall_x_min = x_min;
+      }
+      let z_min = crowd_source.z - crowd_source.range;
+      if (overall_z_min > z_min) {
+        overall_z_min = z_min;
+      }
+      let x_max = crowd_source.x + crowd_source.range;
+      if (overall_x_max < x_max) {
+        overall_x_max = x_max;
+      }
+      let z_max = crowd_source.z + crowd_source.range;
+      if (overall_z_max < z_max) {
+        overall_z_max = z_max;
+      }
+    }
+
+    zoom_x = (overall_x_min + overall_x_max) / 2;
+    let zoom_x_scale = minimap.width / (overall_x_max - overall_x_min + 1);
+    zoom_z = (overall_z_min + overall_z_max) / 2;
+    let zoom_z_scale = minimap.height / (overall_z_max - overall_z_min + 1);
+    zoom_scale = Math.min(zoom_x_scale, zoom_z_scale);
+  }
+
+  ctx.reset();
+  ctx.imageSmoothingEnabled = false;
+  ctx.scale(zoom_scale, zoom_scale);
+  ctx.translate(minimap.width/(2*zoom_scale) - zoom_x - 0.5, minimap.width/(2*zoom_scale) - zoom_z - 0.5);
+  for (let crowd_source of crowd_sources) {
+    if (crowd_source.image === undefined) {
+      crowd_source.image = new Image();
+      crowd_source.image.src = "minimaps/" + crowd_source.x + "/" + crowd_source.y + "/" + crowd_source.z;
+    }
+    crowd_source.image.onload = () => {
+     ctx.drawImage(crowd_source.image, crowd_source.x-crowd_source.range, crowd_source.z-crowd_source.range, crowd_source.range*2+1, crowd_source.range*2+1);
+    }
+    crowd_source.image.src = crowd_source.image.src;
+  }
+}
+
+function mutation_callback(mutations, observer) {
+  console.log("Called back.");
+  for (const mutation of mutations) {
+    if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+      if (minimap_holder.classList.contains("open")) {
+        if (update_interval === null) {
+          console.log("Starting interval.");
+          update_interval = setInterval(update_minimap, 1000);
+        }
+      } else {
+        if (update_interval !== null) {
+          console.log("Stopping interval.");
+          clearInterval(update_interval);
+          update_interval = null;
+        }
+      }
+    }
+  }
+}
+let observer = new MutationObserver(mutation_callback);
+observer.observe(minimap_holder, { attributes: true });
+</script>
 {% if miniconfigs %}
 <h3>Your Mini Configs</h3>
 {% for mc in miniconfigs %}

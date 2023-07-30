@@ -1,3 +1,5 @@
+import base64
+
 from django.conf import settings
 from django.forms import ModelForm, CharField
 from django.views.generic import View, TemplateView, DetailView, ListView
@@ -127,6 +129,28 @@ class ManageShowView(TemplateView):
         if context["me"] != context["host"]:
             raise Redirect("../")
 
+class MinimapMetadataView(View):
+    def get(self, request, host_name, show_name):
+        host = get_object_or_404(Viewer, twitch_username=host_name)
+        show = get_object_or_404(Show, host=host, name=show_name)
+
+        if "If-None-Match" in request.headers:
+            if '"%s"' % show.last_update in [s.strip() for s in request.headers["If-None-Match"].split(",")]:
+                return HttpResponse(status=304)
+
+        crowd_sources = CrowdSource.objects.filter(show=show)
+        json = {"etag": str(show.last_update), "crowd_sources": [dict(x=cs.x, y=cs.y, z=cs.z, range=cs.range) for cs in crowd_sources]}
+        return JsonResponse(json)
+
+
+class MinimapView(View):
+    def get(self, request, host_name, show_name, x, y, z):
+        host = get_object_or_404(Viewer, twitch_username=host_name)
+        show = get_object_or_404(Show, host=host, name=show_name)
+        crowd_source = get_object_or_404(CrowdSource, show=show, x=x, y=y, z=z)
+
+        return HttpResponse(crowd_source.minimap, content_type='image/png')
+
 class MinecraftView(View):
     @classmethod
     def as_view(cls, *args, **kwargs):
@@ -183,6 +207,16 @@ class MinecraftView(View):
                 end_z=request.POST["end_z"],
             )
             region.save()
+            return JsonResponse({})
+        if method == "upload_minimap":
+            try:
+                crowd_source = CrowdSource.objects.get(show=show, x=request.POST["x"], y=request.POST["y"], z=request.POST["z"])
+            except CrowdSource.DoesNotExist:
+                crowd_source = CrowdSource(show=show, x=request.POST["x"], y=request.POST["y"], z=request.POST["z"])
+            crowd_source.minimap = base64.urlsafe_b64decode(request.POST["image"])
+            crowd_source.range = request.POST["range"]
+            crowd_source.save()
+            show.save()
             return JsonResponse({})
         raise Http404()
 
