@@ -1,11 +1,14 @@
 package com.funnyman3595.crowd_computing;
 
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -206,5 +209,36 @@ public class WebLink implements ICapabilitySerializable<CompoundTag> {
 	public void send_auth_secret_ack(ServerPlayer player) {
 		CrowdComputingChannel.INSTANCE.send(PacketDistributor.PLAYER.with(() -> player),
 				new CrowdComputingChannel.AuthSecretAck(has_auth_secret()));
+	}
+
+	public void upload_minimap(BlockPos blockPos, int range, BufferedImage minimap,
+			Consumer<Exception> error_callback) {
+		HashMap<String, String> args = new HashMap<String, String>();
+		args.put("x", "" + blockPos.getX());
+		args.put("y", "" + blockPos.getY());
+		args.put("z", "" + blockPos.getZ());
+		args.put("range", "" + range);
+
+		ByteArrayOutputStream image = new ByteArrayOutputStream();
+		try {
+			javax.imageio.ImageIO.write(minimap, "png", image);
+		} catch (Exception e) {
+			error_callback.accept(e);
+			return;
+		}
+		args.put("image", Base64.getUrlEncoder().encodeToString(image.toByteArray()));
+
+		fetch("upload_minimap", args, json -> {
+		}, error_callback);
+	}
+
+	public void delete_minimap(BlockPos blockPos, Consumer<Exception> error_callback) {
+		HashMap<String, String> args = new HashMap<String, String>();
+		args.put("x", "" + blockPos.getX());
+		args.put("y", "" + blockPos.getY());
+		args.put("z", "" + blockPos.getZ());
+
+		fetch("delete_minimap", args, json -> {
+		}, error_callback);
 	}
 }

@@ -5,7 +5,7 @@ import java.io.IOException;
 
 import com.google.gson.JsonObject;
 
-public record DefaultCrowdSources(String name, double range) {
+public record DefaultCrowdSources(String name, int range) {
 	public static DefaultCrowdSources BASIC = new DefaultCrowdSources("basic", 8);
 	public static DefaultCrowdSources[] ALL = { BASIC };
 

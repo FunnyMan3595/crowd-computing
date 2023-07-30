@@ -18,6 +18,9 @@ import net.minecraftforge.common.crafting.CraftingHelper;
 import net.minecraftforge.event.AddReloadListenerEvent;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.entity.EntityAttributeCreationEvent;
+import net.minecraftforge.event.level.BlockEvent;
+import net.minecraftforge.event.level.ChunkEvent;
+import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraft.client.gui.screens.MenuScreens;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -28,6 +31,7 @@ import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.RecipeType;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraftforge.fml.DistExecutor;
@@ -228,6 +232,9 @@ public class CrowdComputing {
 		FMLJavaModLoadingContext.get().getModEventBus().addListener(this::registerConditionSerializers);
 		MinecraftForge.EVENT_BUS.addListener(this::registerCommands);
 		MinecraftForge.EVENT_BUS.addListener(this::addReloadListeners);
+		MinecraftForge.EVENT_BUS.addListener(this::onChunkLoad);
+		MinecraftForge.EVENT_BUS.addListener(this::onBlockUpdate);
+		MinecraftForge.EVENT_BUS.addListener(EventPriority.LOWEST, this::onBlockDestroy);
 		FMLJavaModLoadingContext.get().getModEventBus().addListener(this::clientSetup);
 		FMLJavaModLoadingContext.get().getModEventBus().addListener(this::registerAttributes);
 
@@ -263,5 +270,17 @@ public class CrowdComputing {
 
 	private void registerAttributes(final EntityAttributeCreationEvent event) {
 		event.put(CrowdMemberEntity.TYPE, CrowdMemberEntity.attributes().build());
+	}
+
+	private void onChunkLoad(final ChunkEvent.Load event) {
+		CrowdSourceBlockEntity.delayed_mark_dirty((Level) event.getLevel(), event.getChunk().getPos());
+	}
+
+	private void onBlockUpdate(final BlockEvent.NeighborNotifyEvent event) {
+		CrowdSourceBlockEntity.mark_dirty((Level) event.getLevel(), event.getPos());
+	}
+
+	private void onBlockDestroy(final BlockEvent.BreakEvent event) {
+		CrowdSourceBlockEntity.on_block_broken((Level) event.getLevel(), event.getPos());
 	}
 }

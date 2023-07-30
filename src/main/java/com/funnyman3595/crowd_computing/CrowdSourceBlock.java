@@ -2,13 +2,13 @@ package com.funnyman3595.crowd_computing;
 
 import java.util.HashMap;
 import java.util.List;
-
 import com.google.gson.JsonObject;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -62,6 +62,16 @@ public class CrowdSourceBlock extends Block implements EntityBlock {
 	@Override
 	public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
 		return new CrowdSourceBlockEntity(pos, state);
+	}
+
+	@Override
+	public void setPlacedBy(Level level, BlockPos pos, BlockState state, LivingEntity entity, ItemStack stack) {
+		if (entity instanceof Player) {
+			BlockEntity block_entity = level.getBlockEntity(pos);
+			if (block_entity instanceof CrowdSourceBlockEntity) {
+				((CrowdSourceBlockEntity) block_entity).owner = entity.getUUID();
+			}
+		}
 	}
 
 	public static CrowdSourceBlock load(String name, JsonObject config) {
