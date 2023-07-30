@@ -218,6 +218,13 @@ class MinecraftView(View):
             crowd_source.save()
             show.save()
             return JsonResponse({})
+        if method == "delete_minimap":
+            try:
+                crowd_source = CrowdSource.objects.get(show=show, x=request.POST["x"], y=request.POST["y"], z=request.POST["z"])
+            except CrowdSource.DoesNotExist:
+                return JsonResponse({})
+            crowd_source.delete()
+            return JsonResponse({})
         raise Http404()
 
 def login(request):

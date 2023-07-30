@@ -16,10 +16,10 @@
     "url": "https://github.com/FunnyMan3595/crowd-computing/issues"
   },
   "homepage": "https://github.com/FunnyMan3595/crowd-computing#readme",
-  "devDependencies": {
-  },
   "dependencies": {
     "@leavittsoftware/titanium-chip": "^6.0.1",
-    "@material/web": "^1.0.0-pre.14"
+    "@material/web": "^1.0.0-pre.14",
+    "easyscroller": "^1.0.1",
+    "scroller": "^0.0.3"
   }
 }

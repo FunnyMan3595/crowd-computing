@@ -6,5 +6,9 @@ module.exports = {
   output: {
     path: path.resolve(__dirname, 'static'),
     filename: 'main.js',
+    library: {
+      name: 'window.Packed',
+      type: 'assign',
+    },
   },
 };

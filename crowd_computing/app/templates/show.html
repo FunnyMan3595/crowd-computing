@@ -18,9 +18,113 @@ let minimap_holder = document.getElementById("minimap_holder");
 let update_interval = null;
 let last_etag = null;
 let crowd_sources = [];
-let zoom_x = null;
-let zoom_z = null;
-let zoom_scale = null;
+let initialized = false;
+let scroller = null;
+let scroller_origin_x = null;
+let scroller_origin_z = null;
+
+function render(left, top, zoom) {
+  console.log([left, top, zoom]);
+  const load_image = (crowd_source) => {
+    return new Promise((resolve, reject) => {
+      if (crowd_source.image === undefined) {
+        crowd_source.image = new Image();
+        let url = "minimaps/" + crowd_source.x + "/" + crowd_source.y + "/" + crowd_source.z;
+        fetch(url).then(() => {
+          crowd_source.image.onload = () => resolve(crowd_source);
+          crowd_source.image.onerror = reject;
+          crowd_source.image.src = url;
+        });
+      } else {
+        crowd_source.image.onload = () => resolve(crowd_source);
+        crowd_source.image.onerror = reject;
+        if (crowd_source.image.complete) {
+          if (crowd_source.image.height > 0) {
+            resolve(crowd_source);
+          } else {
+            reject();
+          }
+        }
+      }
+    })
+  }
+
+  let prerender = new OffscreenCanvas(minimap.width, minimap.height);
+  let pre_ctx = prerender.getContext("2d");
+
+  Promise.all(crowd_sources.map(load_image)).then(loaded_crowd_sources => {
+    pre_ctx.setTransform();
+    pre_ctx.imageSmoothingEnabled = false;
+    pre_ctx.translate(-left, -top);
+    pre_ctx.scale(zoom, zoom);
+    for (let crowd_source of loaded_crowd_sources) {
+      pre_ctx.drawImage(crowd_source.image, crowd_source.x-crowd_source.range - scroller_origin_x, crowd_source.z-crowd_source.range - scroller_origin_z, crowd_source.range*2+1, crowd_source.range*2+1);
+    }
+
+    ctx.clearRect(0, 0, minimap.width, minimap.height);
+    ctx.drawImage(prerender, 0, 0);
+    console.log(loaded_crowd_sources.length);
+  }).catch(() => {
+    setTimeout(() => render(left, top, zoom), 1);
+  });
+}
+
+if ('ontouchstart' in window) {
+  minimap.ontouchstart = (e) => {
+    scroller.doTouchStart(e.touches, e.timeStamp);
+    return false;
+  }
+
+  minimap.ontouchmove = (e) => {
+    scroller.doTouchMove(e.touches, e.timeStamp, e.scale);
+    return false;
+  }
+
+  minimap.ontouchend = (e) => {
+    scroller.doTouchEnd(e.timeStamp);
+    return false;
+  }
+
+  minimap.ontouchcancel = (e) => {
+    scroller.doTouchEnd(e.timeStamp);
+    return false;
+  }
+} else {
+  let mouse_down = false;
+
+  minimap.onmousedown = (e) => {
+    scroller.doTouchStart([{
+      pageX: e.pageX,
+      pageY: e.pageY,
+    }], e.timeStamp);
+    mouse_down = true;
+    return false;
+  }
+
+  minimap.onmousemove = (e) => {
+    if (!mouse_down) {
+      return true;
+    }
+
+    scroller.doTouchMove([{
+      pageX: e.pageX,
+      pageY: e.pageY,
+    }], e.timeStamp);
+    return false;
+  }
+
+  minimap.onmouseup = (e) => {
+    scroller.doTouchEnd(e.timeStamp);
+    return false;
+  }
+
+  minimap.onwheel = function(e) {
+    let rect = minimap.getBoundingClientRect();
+    scroller.setPosition(rect.left, rect.top);
+    scroller.doMouseZoom(-e.wheelDelta, e.timeStamp, e.pageX, e.pageY);
+    return false;
+  }
+}
 
 async function update_minimap() {
   let headers = {};
@@ -43,66 +147,66 @@ async function update_minimap() {
     return;
   }
 
-  if (zoom_scale === null) {
-    let overall_x_min = crowd_sources[0].x - crowd_sources[0].range;
-    let overall_z_min = crowd_sources[0].z - crowd_sources[0].range;
-    let overall_x_max = crowd_sources[0].x + crowd_sources[0].range;
-    let overall_z_max = crowd_sources[0].z + crowd_sources[0].range;
+  let overall_x_min = crowd_sources[0].x - crowd_sources[0].range;
+  let overall_z_min = crowd_sources[0].z - crowd_sources[0].range;
+  let overall_x_max = crowd_sources[0].x + crowd_sources[0].range;
+  let overall_z_max = crowd_sources[0].z + crowd_sources[0].range;
 
-    for (let crowd_source of crowd_sources) {
-      let x_min = crowd_source.x - crowd_source.range;
-      if (overall_x_min > x_min) {
-        overall_x_min = x_min;
-      }
-      let z_min = crowd_source.z - crowd_source.range;
-      if (overall_z_min > z_min) {
-        overall_z_min = z_min;
-      }
-      let x_max = crowd_source.x + crowd_source.range;
-      if (overall_x_max < x_max) {
-        overall_x_max = x_max;
-      }
-      let z_max = crowd_source.z + crowd_source.range;
-      if (overall_z_max < z_max) {
-        overall_z_max = z_max;
-      }
+  for (let crowd_source of crowd_sources) {
+    let x_min = crowd_source.x - crowd_source.range;
+    if (overall_x_min > x_min) {
+      overall_x_min = x_min;
     }
-
-    zoom_x = (overall_x_min + overall_x_max) / 2;
-    let zoom_x_scale = minimap.width / (overall_x_max - overall_x_min + 1);
-    zoom_z = (overall_z_min + overall_z_max) / 2;
-    let zoom_z_scale = minimap.height / (overall_z_max - overall_z_min + 1);
-    zoom_scale = Math.min(zoom_x_scale, zoom_z_scale);
+    let z_min = crowd_source.z - crowd_source.range;
+    if (overall_z_min > z_min) {
+      overall_z_min = z_min;
+    }
+    let x_max = crowd_source.x + crowd_source.range;
+    if (overall_x_max < x_max) {
+      overall_x_max = x_max;
+    }
+    let z_max = crowd_source.z + crowd_source.range;
+    if (overall_z_max < z_max) {
+      overall_z_max = z_max;
+    }
   }
 
-  ctx.reset();
-  ctx.imageSmoothingEnabled = false;
-  ctx.scale(zoom_scale, zoom_scale);
-  ctx.translate(minimap.width/(2*zoom_scale) - zoom_x - 0.5, minimap.width/(2*zoom_scale) - zoom_z - 0.5);
-  for (let crowd_source of crowd_sources) {
-    if (crowd_source.image === undefined) {
-      crowd_source.image = new Image();
-      crowd_source.image.src = "minimaps/" + crowd_source.x + "/" + crowd_source.y + "/" + crowd_source.z;
-    }
-    crowd_source.image.onload = () => {
-     ctx.drawImage(crowd_source.image, crowd_source.x-crowd_source.range, crowd_source.z-crowd_source.range, crowd_source.range*2+1, crowd_source.range*2+1);
-    }
-    crowd_source.image.src = crowd_source.image.src;
+  let old_scroller_origin_x = scroller_origin_x;
+  scroller_origin_x = overall_x_min;
+  let zoom_x_scale = minimap.width / (overall_x_max - overall_x_min + 1);
+  let old_scroller_origin_z = scroller_origin_z;
+  scroller_origin_z = overall_z_min;
+  let zoom_z_scale = minimap.height / (overall_z_max - overall_z_min + 1);
+  let zoom_scale = Math.min(zoom_x_scale, zoom_z_scale);
+
+  if (scroller === null) {
+    scroller = new Packed.Scroller(render, {
+      zooming: true,
+      locking: false,
+      minZoom: zoom_scale,
+      maxZoom: Math.max(minimap.width, minimap.height),
+    });
+    scroller.setDimensions(minimap.width, minimap.height, overall_x_max - overall_x_min + 1, overall_z_max - overall_z_min + 1);
+    scroller.zoomTo(zoom_scale)
+  } else {
+    scroller.options.minZoom = zoom_scale;
+    scroller.options.maxZoom = Math.max(minimap.width, minimap.height);
+    scroller.setDimensions(minimap.width, minimap.height, overall_x_max - overall_x_min + 1, overall_z_max - overall_z_min + 1);
+    let rect = minimap.getBoundingClientRect();
+    scroller.scrollBy((old_scroller_origin_x - scroller_origin_x) * scroller.__zoomLevel, (old_scroller_origin_z - scroller_origin_z) * scroller.__zoomLevel, false);
+    scroller.zoomBy(1, false, rect.left, rect.top);
   }
 }
 
 function mutation_callback(mutations, observer) {
-  console.log("Called back.");
   for (const mutation of mutations) {
     if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
       if (minimap_holder.classList.contains("open")) {
         if (update_interval === null) {
-          console.log("Starting interval.");
           update_interval = setInterval(update_minimap, 1000);
         }
       } else {
         if (update_interval !== null) {
-          console.log("Stopping interval.");
           clearInterval(update_interval);
           update_interval = null;
         }

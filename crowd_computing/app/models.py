@@ -43,7 +43,7 @@ class CrowdSource(models.Model):
     minimap = models.BinaryField(max_length=100*1024)
 
     def __str__(self):
-        return "(%d, %d, %d)" % (x, y, z)
+        return "(%d, %d, %d)" % (self.x, self.y, self.z)
 
 class Region(models.Model):
     class Meta:
