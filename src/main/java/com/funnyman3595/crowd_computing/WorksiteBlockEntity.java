@@ -535,6 +535,7 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 			for (WorksiteRecipe.Stage stage : best_match.stages) {
 				entity.process_duration += stage.duration();
 			}
+			entity.setChanged();
 			return;
 		}
 
@@ -606,7 +607,7 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 
 			if (recipe_info.contains("recipe_id")) {
 				try {
-					current_recipe = (WorksiteRecipe) level.getRecipeManager()
+					current_recipe = (WorksiteRecipe) CrowdComputing.SERVER.getRecipeManager()
 							.byKey(new ResourceLocation(recipe_info.getString("recipe_id"))).get();
 				} catch (Exception e) {
 					CrowdComputing.LOGGER.error("Unable to load recipe: ", e);
