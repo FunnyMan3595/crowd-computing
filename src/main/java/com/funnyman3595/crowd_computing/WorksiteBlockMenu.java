@@ -143,7 +143,8 @@ public class WorksiteBlockMenu extends AbstractContainerMenu {
 		int old_block_slots = getBlockSlots();
 		ItemStack old_stack = slots.get(slot_index).getItem().copy();
 		ItemStack result = quickMoveStack_internal(player, slot_index);
-		if (getBlockSlots() != old_block_slots) {
+		updateSlots();
+		if (getBlockSlots() != old_block_slots && slot_index >= old_block_slots) {
 			int new_slot_index = slot_index - old_block_slots + getBlockSlots();
 			setRemoteSlot(new_slot_index, old_stack);
 			slots.get(new_slot_index).setChanged();
