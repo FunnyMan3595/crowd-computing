@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.Container;
 import net.minecraft.world.SimpleContainer;
@@ -16,6 +18,7 @@ import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.inventory.SimpleContainerData;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
+import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fml.util.ObfuscationReflectionHelper;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
@@ -30,7 +33,7 @@ public class WorksiteBlockMenu extends AbstractContainerMenu {
 	private boolean lock_cache = false;
 
 	public WorksiteBlockMenu(int container_id, Inventory inventory) {
-		this(container_id, inventory, null, new SimpleContainerData(12));
+		this(container_id, inventory, null, new SimpleContainerData(21));
 	}
 
 	public int getProgress() {
@@ -87,19 +90,24 @@ public class WorksiteBlockMenu extends AbstractContainerMenu {
 		if (worksite_data.get(WorksiteBlockEntity.INPUT_SLOTS_INDEX) == 1) {
 			// Special case because the input slot looks wrong if there's only one and it's
 			// on the left.
-			addSlot(new DynamicSlot(container, slot_offset, 8 + 3 * 18, 17 + 1 * 18));
+			addSlot(new InputSlot(container, 0, slot_offset, 8 + 3 * 18, 17 + 1 * 18));
 		} else {
+			// This is silly, but Java doesn't realize the callback is only used
+			// immediately,
+			// so it gets upset without making this final.
+			final int slot_offset_for_callback = slot_offset;
 			makeVariableSlots(slot_offset, 2, 3, 8 + 2 * 18, 17,
 					worksite_data.get(WorksiteBlockEntity.INPUT_SLOTS_INDEX),
-					(SlotInfo info) -> addSlot(new DynamicSlot(container, info.slot(), info.x(), info.y())));
+					(SlotInfo info) -> addSlot(new InputSlot(container, info.slot() - slot_offset_for_callback,
+							info.slot(), info.x(), info.y())));
 		}
 		slot_offset += worksite_data.get(WorksiteBlockEntity.INPUT_SLOTS_INDEX);
 
 		if (worksite_data.get(WorksiteBlockEntity.TOOL_SLOTS_INDEX) >= 1) {
-			addSlot(new ToolSlot(container, slot_offset, 8 + 4 * 18 + 9, 17));
+			addSlot(new ToolSlot(container, 0, slot_offset, 8 + 4 * 18 + 9, 17));
 		}
 		if (worksite_data.get(WorksiteBlockEntity.TOOL_SLOTS_INDEX) >= 2) {
-			addSlot(new ToolSlot(container, slot_offset + 1, 8 + 4 * 18 + 9, 17 + 2 * 18));
+			addSlot(new ToolSlot(container, 1, slot_offset + 1, 8 + 4 * 18 + 9, 17 + 2 * 18));
 		}
 		slot_offset += worksite_data.get(WorksiteBlockEntity.TOOL_SLOTS_INDEX);
 
@@ -309,6 +317,23 @@ public class WorksiteBlockMenu extends AbstractContainerMenu {
 		}
 	}
 
+	public class InputSlot extends DynamicSlot {
+		public final int input_index;
+
+		public InputSlot(Container container, int input_index, int index, int x, int y) {
+			super(container, index, x, y);
+			this.input_index = input_index;
+		}
+
+		@Override
+		public boolean mayPlace(ItemStack stack) {
+			if (worksite == null) {
+				return true;
+			}
+			return worksite.canPlaceItem(index, stack);
+		}
+	}
+
 	public class UpgradeSlot extends DynamicSlot {
 		public static int TEXTURE_X = 18;
 		public static int TEXTURE_Y = 0;
@@ -337,8 +362,19 @@ public class WorksiteBlockMenu extends AbstractContainerMenu {
 		public static int TEXTURE_X = 18 * 2;
 		public static int TEXTURE_Y = 0;
 
-		public ToolSlot(Container container, int index, int x, int y) {
+		public final int tool_index;
+
+		public ToolSlot(Container container, int tool_index, int index, int x, int y) {
 			super(container, index, x, y);
+			this.tool_index = tool_index;
+		}
+
+		@Override
+		public boolean mayPlace(ItemStack stack) {
+			if (worksite == null) {
+				return true;
+			}
+			return worksite.canPlaceItem(index, stack);
 		}
 
 		@Override
@@ -368,5 +404,51 @@ public class WorksiteBlockMenu extends AbstractContainerMenu {
 			return worksite;
 		}
 		return client_cache;
+	}
+
+	public void toggle_lock() {
+		CrowdComputingChannel.INSTANCE.sendToServer(new CrowdComputingChannel.ToggleRecipeLock(new BlockPos(
+				worksite_data.get(WorksiteBlockEntity.POS_X_INDEX), worksite_data.get(WorksiteBlockEntity.POS_Y_INDEX),
+				worksite_data.get(WorksiteBlockEntity.POS_Z_INDEX))));
+	}
+
+	public boolean recipe_locked() {
+		return worksite_data.get(WorksiteBlockEntity.RECIPE_LOCK_INDEX) > 0;
+	}
+
+	public int get_energy_fill(int bar_size) {
+		int storage = worksite_data.get(WorksiteBlockEntity.ENERGY_STORAGE_INDEX);
+		int cap = worksite_data.get(WorksiteBlockEntity.ENERGY_CAP_INDEX);
+		if (storage == 0) {
+			return 0;
+		}
+		return Math.max(1, (bar_size * storage) / cap);
+	}
+
+	public int get_fluid_fill(int bar_size) {
+		int storage = worksite_data.get(WorksiteBlockEntity.FLUID_STORAGE_INDEX);
+		int cap = worksite_data.get(WorksiteBlockEntity.FLUID_CAP_INDEX);
+		if (storage == 0) {
+			return 0;
+		}
+		return Math.max(1, (bar_size * storage) / cap);
+	}
+
+	public boolean has_energy() {
+		return worksite_data.get(WorksiteBlockEntity.ENERGY_CAP_INDEX) > 0;
+	}
+
+	public boolean has_fluid() {
+		return worksite_data.get(WorksiteBlockEntity.FLUID_CAP_INDEX) > 0;
+	}
+
+	@SuppressWarnings("deprecation")
+	public FluidStack get_fluid() {
+		int fluid_id = worksite_data.get(WorksiteBlockEntity.FLUID_TYPE);
+		if (fluid_id == -1) {
+			return FluidStack.EMPTY;
+		}
+		return new FluidStack(Registry.FLUID.byId(fluid_id),
+				worksite_data.get(WorksiteBlockEntity.FLUID_STORAGE_INDEX));
 	}
 }

@@ -29,8 +29,7 @@ public class CrowdSourceBlockScreen extends AbstractContainerScreen<CrowdSourceB
 		super.init();
 		int i = (width - imageWidth) / 2;
 		int j = (height - imageHeight) / 2;
-		open_site = new Button(i + 5, j + 20, 166, 20,
-				Component.translatable("crowd_computing.open_site"),
+		open_site = new Button(i + 5, j + 20, 166, 20, Component.translatable("crowd_computing.open_site"),
 				new InvokeCallback((button) -> {
 					Util.getPlatform().openUri("https://crowd-computing.funnyman3595.com/");
 				}));
@@ -47,7 +46,7 @@ public class CrowdSourceBlockScreen extends AbstractContainerScreen<CrowdSourceB
 
 		int i = (width - imageWidth) / 2;
 		int j = (height - imageHeight) / 2;
-		return new Button(i+5, j+45, 166, 20, paste_label, new InvokeCallback((button) -> {
+		return new Button(i + 5, j + 45, 166, 20, paste_label, new InvokeCallback((button) -> {
 			String clipboard = TextFieldHelper.getClipboardContents(minecraft);
 			if (clipboard.length() == 50) {
 				CrowdComputingChannel.INSTANCE.sendToServer(new CrowdComputingChannel.SetAuthSecret(clipboard));
@@ -61,7 +60,7 @@ public class CrowdSourceBlockScreen extends AbstractContainerScreen<CrowdSourceB
 		addRenderableWidget(paste_secret);
 	}
 
-	public class InvokeCallback implements Button.OnPress {
+	public static class InvokeCallback implements Button.OnPress {
 		private Consumer<Button> callback;
 
 		public InvokeCallback(Consumer<Button> callback) {

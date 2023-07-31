@@ -2,12 +2,14 @@ package com.funnyman3595.crowd_computing;
 
 import java.util.function.Supplier;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.network.NetworkEvent;
@@ -32,6 +34,8 @@ public class CrowdComputingChannel {
 				SetAuthSecret::handle);
 		INSTANCE.registerMessage(id++, AuthSecretAck.class, AuthSecretAck::encode, AuthSecretAck::decode,
 				AuthSecretAck::handle);
+		INSTANCE.registerMessage(id++, ToggleRecipeLock.class, ToggleRecipeLock::encode, ToggleRecipeLock::decode,
+				ToggleRecipeLock::handle);
 	}
 
 	public static class WorksiteMessagePacket {
@@ -159,6 +163,42 @@ public class CrowdComputingChannel {
 			ctx.get().enqueueWork(() -> {
 				DistExecutor.unsafeRunWhenOn(Dist.CLIENT,
 						() -> () -> CrowdComputingChannelClient.on_auth_secret_ack(packet.valid_secret));
+			});
+			ctx.get().setPacketHandled(true);
+		}
+	}
+
+	public static class ToggleRecipeLock {
+		public final BlockPos pos;
+
+		public ToggleRecipeLock(BlockPos pos) {
+			this.pos = pos;
+		}
+
+		public static void encode(ToggleRecipeLock packet, FriendlyByteBuf buf) {
+			buf.writeBlockPos(packet.pos);
+		}
+
+		public static ToggleRecipeLock decode(FriendlyByteBuf buf) {
+			return new ToggleRecipeLock(buf.readBlockPos());
+		}
+
+		public static void handle(ToggleRecipeLock packet, Supplier<NetworkEvent.Context> ctx) {
+			ctx.get().enqueueWork(() -> {
+				Player player = ctx.get().getSender();
+				if (packet.pos.distToCenterSqr(player.getPosition(0)) > 64.0) {
+					return;
+				}
+				if (!player.level.isLoaded(packet.pos)) {
+					return;
+				}
+
+				BlockEntity entity = player.level.getBlockEntity(packet.pos);
+				if (entity == null || !(entity instanceof WorksiteBlockEntity)) {
+					return;
+				}
+
+				((WorksiteBlockEntity) entity).toggle_recipe_lock();
 			});
 			ctx.get().setPacketHandled(true);
 		}

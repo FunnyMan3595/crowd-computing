@@ -31,6 +31,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.Level;
@@ -43,6 +44,7 @@ public class WorksiteRecipe implements Recipe<WorksiteBlockEntity> {
 			.create(new ResourceLocation(CrowdComputing.MODID, "worksite"), ForgeRegistries.RECIPE_TYPES);
 	public static final Serializer SERIALIZER = new Serializer();
 	public static final RecipeCache RECIPES = new RecipeCache();
+	public static RecipeManager RECIPE_MANAGER = null;
 
 	public final ResourceLocation id;
 	public final CountableIngredient[] ingredients;

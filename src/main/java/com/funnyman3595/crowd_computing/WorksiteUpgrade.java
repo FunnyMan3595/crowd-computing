@@ -7,13 +7,16 @@ import com.google.gson.JsonObject;
 import net.minecraft.world.item.Item;
 import net.minecraftforge.registries.RegistryObject;
 
-public record WorksiteUpgrade(int input_slot_count, int tool_slot_count, int output_slot_count, int stack_size) {
+public record WorksiteUpgrade(int input_slot_count, int tool_slot_count, int output_slot_count, int stack_size,
+		int energy_cap, int fluid_cap) {
+
 	public static HashMap<String, RegistryObject<Item>> items = new HashMap<String, RegistryObject<Item>>();
 
 	public static WorksiteUpgrade load(String name, JsonObject config) {
 		return new WorksiteUpgrade(loadInt(name, config, "input_slot_count", 0),
 				loadInt(name, config, "tool_slot_count", 0), loadInt(name, config, "output_slot_count", 0),
-				loadInt(name, config, "stack_size", 1));
+				loadInt(name, config, "stack_size", 1), loadInt(name, config, "energy_cap", 0),
+				loadInt(name, config, "fluid_cap", 0));
 	}
 
 	public static int loadInt(String name, JsonObject config, String key, int default_value) {

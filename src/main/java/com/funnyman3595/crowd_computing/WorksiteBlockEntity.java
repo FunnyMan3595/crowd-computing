@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.stream.IntStream;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.jetbrains.annotations.NotNull;
 
 import com.funnyman3595.crowd_computing.WorksiteRecipe.Stage;
 import com.google.gson.JsonObject;
@@ -15,6 +16,7 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.NonNullList;
+import net.minecraft.core.Registry;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.Connection;
 import net.minecraft.network.chat.Component;
@@ -35,11 +37,15 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BaseContainerBlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraftforge.energy.IEnergyStorage;
+import net.minecraftforge.fluids.FluidStack;
+import net.minecraftforge.fluids.IFluidTank;
+import net.minecraftforge.fluids.capability.IFluidHandler.FluidAction;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.registries.RegistryObject;
 
 public class WorksiteBlockEntity extends BaseContainerBlockEntity
-		implements WorldlyContainer, StackedContentsCompatible {
+		implements WorldlyContainer, StackedContentsCompatible, IFluidTank, IEnergyStorage {
 	public static final int MAX_UPGRADE_SLOTS = 3;
 	public static final int MAX_INPUT_SLOTS = 6;
 	public static final int MAX_TOOL_SLOTS = 2;
@@ -55,9 +61,15 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 	public NonNullList<ItemStack> output_items;
 	public int process_elapsed = 0;
 	public int process_duration = 0;
+	public int energy_storage = 0;
+	public int energy_cap = 0;
+	public int fluid_cap = 0;
+	public FluidStack fluid = FluidStack.EMPTY;
 
-	public boolean inventory_dirty = true;
+	public boolean should_recheck_recipe = true;
 	public WorksiteRecipe current_recipe = null;
+	public WorksiteRecipe locked_recipe = null;
+	public WorksiteRecipe last_recipe = null;
 	public ObjectArrayList<ItemStack> output_blockage = null;
 
 	public HashSet<Player> players_in_gui = new HashSet<Player>();
@@ -71,7 +83,17 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 	public static final int OUTPUT_SLOTS_INDEX = 3;
 	public static final int PROCESS_ELAPSED_INDEX = 10;
 	public static final int PROCESS_DURATION_INDEX = 11;
+	public static final int RECIPE_LOCK_INDEX = 12;
+	public static final int ENERGY_STORAGE_INDEX = 13;
+	public static final int ENERGY_CAP_INDEX = 14;
+	public static final int FLUID_STORAGE_INDEX = 15;
+	public static final int FLUID_CAP_INDEX = 16;
+	public static final int POS_X_INDEX = 17;
+	public static final int POS_Y_INDEX = 18;
+	public static final int POS_Z_INDEX = 19;
+	public static final int FLUID_TYPE = 20;
 	public ContainerData worksite_data = new ContainerData() {
+		@SuppressWarnings("deprecation")
 		@Override
 		public int get(int index) {
 			switch (index) {
@@ -87,6 +109,27 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 				return process_elapsed;
 			case PROCESS_DURATION_INDEX:
 				return process_duration;
+			case RECIPE_LOCK_INDEX:
+				return locked_recipe == null ? 0 : 1;
+			case ENERGY_STORAGE_INDEX:
+				return energy_storage;
+			case ENERGY_CAP_INDEX:
+				return energy_cap;
+			case FLUID_STORAGE_INDEX:
+				return fluid == FluidStack.EMPTY ? 0 : fluid.getAmount();
+			case FLUID_CAP_INDEX:
+				return fluid_cap;
+			case POS_X_INDEX:
+				return getBlockPos().getX();
+			case POS_Y_INDEX:
+				return getBlockPos().getY();
+			case POS_Z_INDEX:
+				return getBlockPos().getZ();
+			case FLUID_TYPE:
+				if (fluid != FluidStack.EMPTY) {
+					return Registry.FLUID.getId(fluid.getFluid());
+				}
+				return -1;
 			default:
 				return 0;
 			}
@@ -95,7 +138,7 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 		@Override
 		public void set(int index, int value) {
 			if (index < 10) {
-				recalcSlots();
+				recalcCapacities();
 			}
 			switch (index) {
 			case PROCESS_ELAPSED_INDEX:
@@ -104,12 +147,26 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 			case PROCESS_DURATION_INDEX:
 				process_duration = value;
 				break;
+			case ENERGY_STORAGE_INDEX:
+				energy_storage = value;
+				break;
+			case ENERGY_CAP_INDEX:
+				energy_cap = value;
+				break;
+			case FLUID_STORAGE_INDEX:
+				if (fluid != FluidStack.EMPTY) {
+					fluid.setAmount(value);
+				}
+				break;
+			case FLUID_CAP_INDEX:
+				fluid_cap = value;
+				break;
 			}
 		}
 
 		@Override
 		public int getCount() {
-			return 12;
+			return 21;
 		}
 	};
 
@@ -135,6 +192,8 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 		input_items = NonNullList.withSize(builtin.input_slot_count(), ItemStack.EMPTY);
 		tool_items = NonNullList.withSize(builtin.tool_slot_count(), ItemStack.EMPTY);
 		output_items = NonNullList.withSize(builtin.output_slot_count(), ItemStack.EMPTY);
+		energy_cap = getEnergyCap();
+		fluid_cap = getFluidCap();
 	}
 
 	public int getInputSlotCount() {
@@ -194,6 +253,34 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 		return max_stack_size;
 	}
 
+	public int getEnergyCap() {
+		int total_energy_cap = builtin.energy_cap();
+		for (ItemStack upgrade_item_stack : upgrades.toArray(new ItemStack[0])) {
+			if (!(upgrade_item_stack.getItem() instanceof WorksiteUpgradeItem)) {
+				continue;
+			}
+			WorksiteUpgrade upgrade = ((WorksiteUpgradeItem) upgrade_item_stack.getItem()).upgrade;
+			if (upgrade.energy_cap() > 0) {
+				total_energy_cap += upgrade.energy_cap();
+			}
+		}
+		return total_energy_cap;
+	}
+
+	public int getFluidCap() {
+		int total_fluid_cap = builtin.fluid_cap();
+		for (ItemStack upgrade_item_stack : upgrades.toArray(new ItemStack[0])) {
+			if (!(upgrade_item_stack.getItem() instanceof WorksiteUpgradeItem)) {
+				continue;
+			}
+			WorksiteUpgrade upgrade = ((WorksiteUpgradeItem) upgrade_item_stack.getItem()).upgrade;
+			if (upgrade.fluid_cap() > 0) {
+				total_fluid_cap += upgrade.fluid_cap();
+			}
+		}
+		return total_fluid_cap;
+	}
+
 	@Override
 	public int getContainerSize() {
 		return upgrades.size() + input_items.size() + tool_items.size() + output_items.size();
@@ -231,10 +318,22 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 		return new_list;
 	}
 
-	public void recalcSlots() {
+	public void recalcCapacities() {
 		input_items = consider_resize(input_items, getInputSlotCount());
 		tool_items = consider_resize(tool_items, getToolSlotCount());
 		output_items = consider_resize(output_items, getOutputSlotCount());
+		energy_cap = getEnergyCap();
+		if (energy_storage > energy_cap) {
+			energy_storage = energy_cap;
+		}
+		fluid_cap = getFluidCap();
+		if (fluid != FluidStack.EMPTY && fluid.getAmount() > fluid_cap) {
+			if (fluid_cap == 0) {
+				fluid = FluidStack.EMPTY;
+			} else {
+				fluid.setAmount(fluid_cap);
+			}
+		}
 	}
 
 	public Pair<List<ItemStack>, Integer> getSlot(int slot) {
@@ -277,11 +376,11 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 			setChanged();
 
 			if (slot_pair.getLeft() == upgrades) {
-				recalcSlots();
+				recalcCapacities();
 			}
 		}
 		setChanged();
-		inventory_dirty = true;
+		should_recheck_recipe = true;
 		return stack;
 	}
 
@@ -290,10 +389,10 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 		Pair<List<ItemStack>, Integer> slot_pair = getSlot(slot);
 		ItemStack result = ContainerHelper.takeItem(slot_pair.getLeft(), slot_pair.getRight());
 		if (slot_pair.getLeft() == upgrades) {
-			recalcSlots();
+			recalcCapacities();
 		}
 		setChanged();
-		inventory_dirty = true;
+		should_recheck_recipe = true;
 		return result;
 	}
 
@@ -305,6 +404,23 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 		}
 		if (slot_pair.getLeft() == output_items) {
 			return false;
+		}
+		if (locked_recipe != null) {
+			if (slot_pair.getLeft() == input_items) {
+				int index = slot_pair.getRight();
+				if (locked_recipe.ingredients.length > index
+						&& locked_recipe.ingredients[index].ingredient().test(stack)) {
+					return true;
+				}
+				return false;
+			}
+			if (slot_pair.getLeft() == tool_items) {
+				int index = slot_pair.getRight();
+				if (locked_recipe.tools.length > index && locked_recipe.tools[index].ingredient().test(stack)) {
+					return true;
+				}
+				return false;
+			}
 		}
 		return true;
 	}
@@ -318,11 +434,11 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 		}
 
 		if (slot_pair.getLeft() == upgrades) {
-			recalcSlots();
+			recalcCapacities();
 		}
 
 		setChanged();
-		inventory_dirty = true;
+		should_recheck_recipe = true;
 	}
 
 	@Override
@@ -501,22 +617,41 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 			if (entity.process_elapsed >= entity.process_duration) {
 				entity.output_blockage = entity.current_recipe.outputs.roll_output(level.random);
 				entity.current_recipe = null;
-				entity.inventory_dirty = true;
+				entity.should_recheck_recipe = true;
 			} else {
 				return;
 			}
 		}
 
-		if (!entity.inventory_dirty) {
+		if (!entity.should_recheck_recipe) {
 			return;
 		}
 
 		if (!entity.tryClearBlockage()) {
-			entity.inventory_dirty = false;
+			entity.should_recheck_recipe = false;
 			return;
 		}
 
 		entity.process_elapsed = 0;
+
+		if (entity.locked_recipe != null) {
+			if (entity.locked_recipe.matches(entity, level)) {
+				entity.consumeAllInputs(entity.locked_recipe.ingredients);
+				entity.damageAllTools(entity.locked_recipe.tools);
+				entity.current_recipe = entity.locked_recipe;
+				entity.last_recipe = entity.locked_recipe;
+				entity.process_duration = 0;
+				for (WorksiteRecipe.Stage stage : entity.locked_recipe.stages) {
+					entity.process_duration += stage.duration();
+				}
+				entity.setChanged();
+			} else {
+				entity.should_recheck_recipe = false;
+			}
+
+			// Whether it works or not, we stop here, so we don't accept any other recipe.
+			return;
+		}
 
 		int best_match_score = -1;
 		WorksiteRecipe best_match = null;
@@ -531,6 +666,7 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 			entity.consumeAllInputs(best_match.ingredients);
 			entity.damageAllTools(best_match.tools);
 			entity.current_recipe = best_match;
+			entity.last_recipe = best_match;
 			entity.process_duration = 0;
 			for (WorksiteRecipe.Stage stage : best_match.stages) {
 				entity.process_duration += stage.duration();
@@ -539,7 +675,7 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 			return;
 		}
 
-		entity.inventory_dirty = false;
+		entity.should_recheck_recipe = false;
 	}
 
 	private boolean tryClearBlockage() {
@@ -594,7 +730,7 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 		super.load(tag);
 
 		ContainerHelper.loadAllItems(tag.getCompound("upgrades"), upgrades);
-		recalcSlots();
+		recalcCapacities();
 		ContainerHelper.loadAllItems(tag.getCompound("input_items"), input_items);
 		ContainerHelper.loadAllItems(tag.getCompound("tool_items"), tool_items);
 		ContainerHelper.loadAllItems(tag.getCompound("output_items"), output_items);
@@ -603,17 +739,39 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 			CompoundTag recipe_info = tag.getCompound("recipe_info");
 			process_elapsed = recipe_info.getInt("elapsed");
 			process_duration = recipe_info.getInt("duration");
-			inventory_dirty = true;
+			should_recheck_recipe = true;
 
 			if (recipe_info.contains("recipe_id")) {
 				try {
 					current_recipe = (WorksiteRecipe) CrowdComputing.SERVER.getRecipeManager()
 							.byKey(new ResourceLocation(recipe_info.getString("recipe_id"))).get();
 				} catch (Exception e) {
-					CrowdComputing.LOGGER.error("Unable to load recipe: ", e);
+					CrowdComputing.LOGGER.error("Unable to load current recipe: ", e);
 				}
 			} else {
 				current_recipe = null;
+			}
+
+			if (recipe_info.contains("locked_recipe")) {
+				try {
+					locked_recipe = (WorksiteRecipe) CrowdComputing.SERVER.getRecipeManager()
+							.byKey(new ResourceLocation(recipe_info.getString("locked_recipe"))).get();
+				} catch (Exception e) {
+					CrowdComputing.LOGGER.error("Unable to load locked recipe: ", e);
+				}
+			} else {
+				locked_recipe = null;
+			}
+
+			if (recipe_info.contains("last_recipe")) {
+				try {
+					last_recipe = (WorksiteRecipe) CrowdComputing.SERVER.getRecipeManager()
+							.byKey(new ResourceLocation(recipe_info.getString("last_recipe"))).get();
+				} catch (Exception e) {
+					CrowdComputing.LOGGER.error("Unable to load last recipe: ", e);
+				}
+			} else {
+				last_recipe = null;
 			}
 
 			if (recipe_info.contains("blockage")) {
@@ -634,9 +792,19 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 		} else {
 			process_elapsed = 0;
 			process_duration = 0;
-			inventory_dirty = true;
+			should_recheck_recipe = true;
 			current_recipe = null;
+			locked_recipe = null;
+			last_recipe = null;
 			output_blockage = null;
+		}
+
+		if (tag.contains("energy")) {
+			energy_storage = tag.getInt("energy");
+		}
+
+		if (tag.contains("fluid")) {
+			fluid = FluidStack.loadFluidStackFromNBT(tag.getCompound("fluid"));
 		}
 	}
 
@@ -660,13 +828,21 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 		ContainerHelper.saveAllItems(output_items_tag, output_items);
 		tag.put("output_items", output_items_tag);
 
-		if (current_recipe != null || output_blockage != null) {
+		if (current_recipe != null || locked_recipe != null || last_recipe != null || output_blockage != null) {
 			CompoundTag recipe_info = new CompoundTag();
 			recipe_info.putInt("elapsed", process_elapsed);
 			recipe_info.putInt("duration", process_duration);
 
 			if (current_recipe != null) {
 				recipe_info.putString("recipe_id", current_recipe.id.toString());
+			}
+
+			if (locked_recipe != null) {
+				recipe_info.putString("locked_recipe", locked_recipe.id.toString());
+			}
+
+			if (last_recipe != null) {
+				recipe_info.putString("last_recipe", last_recipe.id.toString());
 			}
 
 			if (output_blockage != null) {
@@ -680,6 +856,16 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 			}
 
 			tag.put("recipe_info", recipe_info);
+		}
+
+		if (energy_storage > 0) {
+			tag.putInt("energy", energy_storage);
+		}
+
+		if (fluid != FluidStack.EMPTY) {
+			CompoundTag fluid_tag = new CompoundTag();
+			fluid.writeToNBT(fluid_tag);
+			tag.put("fluid", fluid_tag);
 		}
 	}
 
@@ -828,5 +1014,134 @@ public class WorksiteBlockEntity extends BaseContainerBlockEntity
 
 	public interface Worker extends Nameable {
 		public boolean isValid(WorksiteBlockEntity entity);
+	}
+
+	public void toggle_recipe_lock() {
+		if (locked_recipe != null) {
+			locked_recipe = null;
+		} else if (last_recipe != null) {
+			locked_recipe = last_recipe;
+		}
+		should_recheck_recipe = true;
+		setChanged();
+	}
+
+	@Override
+	public int receiveEnergy(int maxReceive, boolean simulate) {
+		if (energy_cap <= energy_storage) {
+			return 0;
+		}
+		int transfer = Math.min(maxReceive, energy_cap - energy_storage);
+		if (!simulate) {
+			should_recheck_recipe = true;
+			energy_storage += transfer;
+		}
+		return transfer;
+	}
+
+	@Override
+	public int extractEnergy(int maxExtract, boolean simulate) {
+		if (energy_storage == 0) {
+			return 0;
+		}
+		int transfer = Math.min(maxExtract, energy_storage);
+		if (!simulate) {
+			should_recheck_recipe = true;
+			energy_storage -= transfer;
+		}
+		return transfer;
+	}
+
+	@Override
+	public int getEnergyStored() {
+		return energy_storage;
+	}
+
+	@Override
+	public int getMaxEnergyStored() {
+		return energy_cap;
+	}
+
+	@Override
+	public boolean canExtract() {
+		return true;
+	}
+
+	@Override
+	public boolean canReceive() {
+		return true;
+	}
+
+	@Override
+	public @NotNull FluidStack getFluid() {
+		return fluid;
+	}
+
+	@Override
+	public int getFluidAmount() {
+		return fluid == FluidStack.EMPTY ? 0 : fluid.getAmount();
+	}
+
+	@Override
+	public int getCapacity() {
+		return fluid_cap;
+	}
+
+	@Override
+	public boolean isFluidValid(FluidStack stack) {
+		return true;
+	}
+
+	@Override
+	public int fill(FluidStack resource, FluidAction action) {
+		if (fluid != FluidStack.EMPTY && !fluid.isFluidEqual(resource)) {
+			return 0;
+		}
+		if (getFluidAmount() >= fluid_cap) {
+			return 0;
+		}
+		int transfer = Math.min(resource.getAmount(), fluid_cap - getFluidAmount());
+		if (action == FluidAction.EXECUTE) {
+			should_recheck_recipe = true;
+			if (fluid == null) {
+				fluid = resource.copy();
+				fluid.setAmount(transfer);
+			} else {
+				fluid.setAmount(fluid.getAmount() + transfer);
+			}
+		}
+		return transfer;
+	}
+
+	@Override
+	public @NotNull FluidStack drain(int maxDrain, FluidAction action) {
+		if (fluid == FluidStack.EMPTY) {
+			return FluidStack.EMPTY;
+		}
+		int transfer = Math.min(maxDrain, fluid.getAmount());
+		if (transfer == 0) {
+			return FluidStack.EMPTY;
+		}
+		FluidStack extracted = fluid.copy();
+		extracted.setAmount(transfer);
+		if (action == FluidAction.EXECUTE) {
+			should_recheck_recipe = true;
+			fluid.setAmount(fluid.getAmount() - transfer);
+			if (fluid.isEmpty()) {
+				fluid = FluidStack.EMPTY;
+			}
+		}
+		return extracted;
+	}
+
+	@Override
+	public @NotNull FluidStack drain(FluidStack resource, FluidAction action) {
+		if (fluid == FluidStack.EMPTY) {
+			return FluidStack.EMPTY;
+		}
+		if (!fluid.isFluidEqual(resource)) {
+			return FluidStack.EMPTY;
+		}
+		return drain(resource.getAmount(), action);
 	}
 }

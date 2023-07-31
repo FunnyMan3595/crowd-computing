@@ -97,21 +97,21 @@ public class WorksiteBlock extends HorizontalDirectionalBlock implements EntityB
 			accessor.scheduleTick(pos, Fluids.WATER, Fluids.WATER.getTickDelay(accessor));
 		}
 
-		((WorksiteBlockEntity) accessor.getBlockEntity(pos)).inventory_dirty = true;
+		((WorksiteBlockEntity) accessor.getBlockEntity(pos)).should_recheck_recipe = true;
 
 		return super.updateShape(state, direction, other_state, accessor, pos, other_pos);
 	}
 
 	@Override
 	public boolean placeLiquid(LevelAccessor accessor, BlockPos pos, BlockState state, FluidState fluid_state) {
-		((WorksiteBlockEntity) accessor.getBlockEntity(pos)).inventory_dirty = true;
+		((WorksiteBlockEntity) accessor.getBlockEntity(pos)).should_recheck_recipe = true;
 
 		return SimpleWaterloggedBlock.super.placeLiquid(accessor, pos, state, fluid_state);
 	}
 
 	@Override
 	public ItemStack pickupBlock(LevelAccessor accessor, BlockPos pos, BlockState state) {
-		((WorksiteBlockEntity) accessor.getBlockEntity(pos)).inventory_dirty = true;
+		((WorksiteBlockEntity) accessor.getBlockEntity(pos)).should_recheck_recipe = true;
 
 		return SimpleWaterloggedBlock.super.pickupBlock(accessor, pos, state);
 	}
