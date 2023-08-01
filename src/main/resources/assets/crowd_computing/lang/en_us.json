@@ -41,6 +41,8 @@
   "crowd_computing.wand_start" : "Start block selected.",
   "crowd_computing.wand_clear" : "Cleared start block.",
   "crowd_computing.name_region" : "Name this region:",
+  "crowd_computing.overwrite_off" : "Rejecting name conflicts",
+  "crowd_computing.overwrite_on" : "Replacing existing region",
   "crowd_computing.region_created" : "Region %s has been created.",
   "crowd_computing.link_failed" : "Unable to contact Crowd Computing server: %s",
   "crowd_computing.wand_missing" : "Can't find your wand.  Keep it in your hand until the region is created."

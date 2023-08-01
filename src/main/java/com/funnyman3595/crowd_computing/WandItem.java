@@ -68,8 +68,8 @@ public class WandItem extends Item {
 		}
 	}
 
-	public void finishRegion(Player player, String name) {
-		WebLink.get(player).add_region(start, end, name, (v) -> {
+	public void finishRegion(Player player, String name, boolean overwrite) {
+		WebLink.get(player).add_region(start, end, name, overwrite, (v) -> {
 			player.sendSystemMessage(Component.translatable("crowd_computing.region_created", name));
 		}, (e) -> {
 			player.sendSystemMessage(Component.translatable("crowd_computing.link_failed", e));

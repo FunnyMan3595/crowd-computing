@@ -1,9 +1,11 @@
 package com.funnyman3595.crowd_computing;
 
+import com.funnyman3595.crowd_computing.CrowdSourceBlockScreen.InvokeCallback;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 
+import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.GameRenderer;
@@ -14,9 +16,11 @@ public class NameRegionScreen extends Screen {
 	public static final ResourceLocation BG = new ResourceLocation(CrowdComputing.MODID,
 			"textures/gui/name_region.png");
 	public static final int imageWidth = 150;
-	public static final int imageHeight = 35;
+	public static final int imageHeight = 60;
 	public EditBox name;
+	public Button overwrite_button;
 	public boolean saved = false;
+	public boolean overwrite = false;
 
 	protected NameRegionScreen() {
 		super(Component.translatable("crowd_computing.name_region"));
@@ -38,6 +42,17 @@ public class NameRegionScreen extends Screen {
 		name.setValue("");
 		addWidget(name);
 		setInitialFocus(name);
+
+		overwrite_button = new Button(i + 4, j + 20 + 15, 142, 20,
+				Component.translatable("crowd_computing.overwrite_off"), new InvokeCallback((button) -> {
+					overwrite = !overwrite;
+					if (overwrite) {
+						overwrite_button.setMessage(Component.translatable("crowd_computing.overwrite_on"));
+					} else {
+						overwrite_button.setMessage(Component.translatable("crowd_computing.overwrite_off"));
+					}
+				}));
+		addRenderableWidget(overwrite_button);
 	}
 
 	@Override
@@ -80,7 +95,8 @@ public class NameRegionScreen extends Screen {
 	@Override
 	public void removed() {
 		if (saved) {
-			CrowdComputingChannel.INSTANCE.sendToServer(new CrowdComputingChannel.RegionNamed(name.getValue()));
+			CrowdComputingChannel.INSTANCE
+					.sendToServer(new CrowdComputingChannel.RegionNamed(name.getValue(), overwrite));
 		}
 	}
 }

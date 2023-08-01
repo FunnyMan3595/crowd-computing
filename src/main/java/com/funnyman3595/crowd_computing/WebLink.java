@@ -162,7 +162,7 @@ public class WebLink implements ICapabilitySerializable<CompoundTag> {
 		}
 	}
 
-	public void add_region(BlockPos start, BlockPos end, String name, Consumer<Void> callback,
+	public void add_region(BlockPos start, BlockPos end, String name, boolean overwrite, Consumer<Void> callback,
 			Consumer<Exception> error_callback) {
 		HashMap<String, String> args = new HashMap<String, String>();
 		args.put("name", name);
@@ -172,6 +172,9 @@ public class WebLink implements ICapabilitySerializable<CompoundTag> {
 		args.put("end_x", "" + end.getX());
 		args.put("end_y", "" + end.getY());
 		args.put("end_z", "" + end.getZ());
+		if (overwrite) {
+			args.put("overwrite", "true");
+		}
 		fetch("add_region", args, json -> {
 			callback.accept(null);
 		}, error_callback);

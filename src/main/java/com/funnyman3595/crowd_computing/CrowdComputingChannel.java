@@ -84,17 +84,20 @@ public class CrowdComputingChannel {
 
 	public static class RegionNamed {
 		public final String name;
+		public final boolean overwrite;
 
-		public RegionNamed(String msg) {
+		public RegionNamed(String msg, boolean overwrite) {
 			this.name = msg;
+			this.overwrite = overwrite;
 		}
 
 		public static void encode(RegionNamed packet, FriendlyByteBuf buf) {
 			buf.writeUtf(packet.name);
+			buf.writeBoolean(packet.overwrite);
 		}
 
 		public static RegionNamed decode(FriendlyByteBuf buf) {
-			return new RegionNamed(buf.readUtf());
+			return new RegionNamed(buf.readUtf(), buf.readBoolean());
 		}
 
 		public static void handle(RegionNamed packet, Supplier<NetworkEvent.Context> ctx) {
@@ -103,13 +106,13 @@ public class CrowdComputingChannel {
 				ItemStack stack = player.getItemInHand(InteractionHand.MAIN_HAND);
 				if (!stack.isEmpty() && stack.getItem() instanceof WandItem) {
 					WandItem wand = (WandItem) stack.getItem();
-					wand.finishRegion(player, packet.name);
+					wand.finishRegion(player, packet.name, packet.overwrite);
 					return;
 				}
 				stack = player.getItemInHand(InteractionHand.OFF_HAND);
 				if (!stack.isEmpty() && stack.getItem() instanceof WandItem) {
 					WandItem wand = (WandItem) stack.getItem();
-					wand.finishRegion(player, packet.name);
+					wand.finishRegion(player, packet.name, packet.overwrite);
 					return;
 				}
 
