@@ -161,7 +161,7 @@ class MinecraftView(View):
 
     def post(self, request, method):
         if "auth_secret" not in request.POST:
-            return HttpResponse("auth_secret not provided: ", status=401)
+            return HttpResponse("auth_secret not provided", status=401)
         auth_secret = request.POST["auth_secret"]
         show = get_object_or_404(Show, minecraft_auth_secret=auth_secret)
 
@@ -196,6 +196,24 @@ class MinecraftView(View):
                     pass
             return JsonResponse({"mini_configs": [mc.to_minecraft() for mc in configs]})
         if method == "add_region":
+            try:
+                pre_existing = Region.objects.get(show=show, name=request.POST["name"])
+            except Region.DoesNotExist:
+                pre_existing = None
+
+            if pre_existing is not None:
+                if request.POST.get("overwrite", "false").casefold() == "true".casefold():
+                    pre_existing.start_x=request.POST["start_x"]
+                    pre_existing.start_y=request.POST["start_y"]
+                    pre_existing.start_z=request.POST["start_z"]
+                    pre_existing.end_x=request.POST["end_x"]
+                    pre_existing.end_y=request.POST["end_y"]
+                    pre_existing.end_z=request.POST["end_z"]
+                    pre_existing.save()
+                    return JsonResponse({})
+                else:
+                    return HttpResponse("A region by that name already exists.", status=409)
+
             region = Region(
                 show=show,
                 name=request.POST["name"],
