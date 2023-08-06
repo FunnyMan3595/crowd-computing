@@ -19,7 +19,8 @@ from crowd_computing.app import views
 urlpatterns = [
         path('', views.Home.as_view(), name='home'),
         path('shows/<host_name>/<show_name>/', views.ShowView.as_view(), name='show'),
-        path('shows/<host_name>/<show_name>/create_mc', views.CreateMC.as_view(), name='create_mcshow'),
+        path('shows/<host_name>/<show_name>/create_mc', views.CreateMC.as_view(), name='create_mc'),
+        path('shows/<host_name>/<show_name>/edit_mc', views.EditMC.as_view(), name='edit_mc'),
         path('shows/<host_name>/<show_name>/manage/', views.ManageShowView.as_view(), name='manage_show'),
         path('shows/<host_name>/<show_name>/manage/edit_region', views.EditRegion.as_view(), name='edit_region'),
         path('shows/<host_name>/<show_name>/minimaps/metadata', views.MinimapMetadataView.as_view(), name='minimap_metadata'),

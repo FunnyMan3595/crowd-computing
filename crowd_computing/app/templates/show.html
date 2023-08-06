@@ -242,6 +242,24 @@ function finish_pick_region(region) {
 document.body.onload = () => {
   bind_button("miniconfig_source");
   bind_button("miniconfig_target");
+{% if miniconfigs %}
+  bind_button("edit_mc_source");
+  bind_button("edit_mc_target");
+{% endif %}
+}
+
+function open_edit_mc_form(elem, name, source, target, limit) {
+  document.getElementById('edit_mc_old_name').value = name;
+  document.getElementById('edit_mc_name').value = name;
+  document.getElementById('edit_mc_source').value = source;
+  document.getElementById('edit_mc_source_text').innerText = source;
+  document.getElementById('edit_mc_target').value = target;
+  document.getElementById('edit_mc_target_text').innerText = target;
+  document.getElementById('edit_mc_limit').value = limit;
+
+  let form=document.getElementById('edit_mc_form');
+  elem.after(form);
+  form.classList.remove('hidden');
 }
 </script>
 {% if miniconfigs %}
@@ -253,13 +271,32 @@ document.body.onload = () => {
 source: {{ mc.source }}<br/>
 target: {{mc.target }}<br/>
 limit: {{mc.limit }}<br/>
+<button onclick="open_edit_mc_form(this, '{{ mc.name }}', '{{ mc.source }}', '{{mc.target }}', '{{mc.limit }}'); return false">Edit</button>
 </div>
 <br/>
 {% endfor %}
+<form action="edit_mc" method="post" class="hidden" id="edit_mc_form" style="margin-top: 5px">
+  {% csrf_token %}
+  <input type="hidden" name="edit_mc_old_name" id="edit_mc_old_name">
+  <table>
+  {{ edit_mc_form }}
+  <tr><th></th><td><input type="submit" value="Modify Config">
+                   <input type="submit" name="delete" value="Delete Config">
+                   <input type="button" value="Cancel" id="edit_mc_cancel" onclick="document.getElementById('edit_mc_form').classList.add('hidden'); return false"></td></tr>
+  </table>
+</form>
 </div>
 {% endif %}
 <h3 class="collapser" onclick="collapse(this)">Add a new Mini Config</h3>
 <div class="collapsed">
+<form action="create_mc" method="post">
+  {% csrf_token %}
+  <table>
+  {{ mc_form }}
+  <tr><th></th><td><input type="submit" value="Create Config"></td></tr>
+  </table>
+</form>
+</div>
 <div class="modal hidden" id="region_modal" style="min-width: 50%; padding: 5px 10px 5px 10px">
 <table id="region-list">
     <thead>
@@ -310,13 +347,5 @@ limit: {{mc.limit }}<br/>
     finish_pick_region(data[0]);
   };
 </script>
-</div>
-<form action="create_mc" method="post">
-  {% csrf_token %}
-  <table>
-  {{ mc_form }}
-  <tr><th></th><td><input type="submit" value="Create Config"></td></tr>
-  </table>
-</form>
 </div>
 {% endblock %}

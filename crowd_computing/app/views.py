@@ -97,8 +97,8 @@ class RegionButton(HiddenInput):
 
 def MCFormMaker(show):
     class MCForm(ModelForm):
-        source = ModelChoiceField(queryset=Region.objects.filter(show=show), to_field_name="name", widget=RegionButton)
-        target = ModelChoiceField(queryset=Region.objects.filter(show=show), to_field_name="name", widget=RegionButton)
+        source = ModelChoiceField(queryset=Region.objects.filter(show=show), to_field_name="name", widget=RegionButton, required=False)
+        target = ModelChoiceField(queryset=Region.objects.filter(show=show), to_field_name="name", widget=RegionButton, required=False)
 
         class Meta:
             model = MiniConfig
@@ -120,18 +120,48 @@ class ShowView(TemplateView):
         context["show"] = get_object_or_404(Show, host=context["host"], name=show_name)
         context["me"] = viewer
         context["miniconfigs"] = MiniConfig.objects.filter(show=context["show"], viewer=context["me"])
+        context["edit_mc_form"] = MCFormMaker(show=context["show"])(auto_id="edit_mc_%s")
         context["mc_form"] = MCFormMaker(show=context["show"])(auto_id="miniconfig_%s")
 
-class CreateMC(TemplateView):
-    @with_oauth_signin
-    def post(self, request, context, viewer, host_name, show_name):
-        context["host"] = get_object_or_404(Viewer, twitch_username=host_name)
-        context["show"] = get_object_or_404(Show, host=context["host"], name=show_name)
-        mc = MiniConfig(show=context["show"], viewer=viewer)
-        form = MCFormMaker(context["show"])(request.POST, instance=mc)
+class CreateMC(View):
+    def post(self, request, host_name, show_name):
+        try:
+            viewer = Viewer.objects.get(pk=request.session["viewer_id"])
+        except:
+            return HttpResponse("Not signed in.", status=401)
+
+        host = get_object_or_404(Viewer, twitch_username=host_name)
+        show = get_object_or_404(Show, host=host, name=show_name)
+        mc = MiniConfig(show=show, viewer=viewer)
+        form = MCFormMaker(show)(request.POST, instance=mc)
         if form.is_valid():
+            try:
+                form.save()
+            except:
+                return HttpResponse("Update failed; did you choose a unique name for this config?", status=500)
+            return redirect(".")
+        else:
+            return JsonResponse(form.errors.get_json_data(), status=400)
+
+class EditMC(View):
+    def post(self, request, host_name, show_name):
+        try:
+            viewer = Viewer.objects.get(pk=request.session["viewer_id"])
+        except:
+            return HttpResponse("Not signed in.", status=401)
+
+        host = get_object_or_404(Viewer, twitch_username=host_name)
+        show = get_object_or_404(Show, host=host, name=show_name)
+        mc = get_object_or_404(MiniConfig, show=show, viewer=viewer, name=request.POST["edit_mc_old_name"])
+        form = MCFormMaker(show)(request.POST, instance=mc)
+        if request.POST.get("delete", False):
+            mc.delete()
+            return redirect(".")
+        elif form.is_valid():
             form.save()
-            raise Redirect(".")
+            return redirect(".")
+        else:
+            return JsonResponse(form.errors.get_json_data(), status=400)
 
 class RegionForm(ModelForm):
     class Meta:
