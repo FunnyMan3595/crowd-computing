@@ -261,7 +261,16 @@ function open_edit_mc_form(elem, name, source, target, limit) {
   elem.after(form);
   form.classList.remove('hidden');
 }
+
+function doCopy(value) {
+  var field = document.getElementById("copy");
+  field.value = value;
+  field.select();
+  field.setSelectionRange(0, 100);
+  navigator.clipboard.writeText(field.value);
+}
 </script>
+<input type=text id=copy class="hidden">
 {% if miniconfigs %}
 <h3 class="collapser" onclick="collapse(this)">Your Mini Configs</h3>
 <div class="collapsed">
@@ -271,6 +280,7 @@ function open_edit_mc_form(elem, name, source, target, limit) {
 source: {{ mc.source }}<br/>
 target: {{mc.target }}<br/>
 limit: {{mc.limit }}<br/>
+<button onclick="doCopy('{{ me.twitch_username }}/{{ mc.name }}'); return false">Copy ID</button>
 <button onclick="open_edit_mc_form(this, '{{ mc.name }}', '{{ mc.source }}', '{{mc.target }}', '{{mc.limit }}'); return false">Edit</button>
 </div>
 <br/>
