@@ -4,7 +4,7 @@ plugins {
     id 'net.minecraftforge.gradle' version '5.1.+'
 }
 
-version = "${mc_version}-0.1"
+version = "${mc_version}-0.2"
 group = 'com.funnyman3595.crowd_computing' // http://maven.apache.org/guides/mini/guide-naming-conventions.html
 archivesBaseName = 'crowd_computing'
 
