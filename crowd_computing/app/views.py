@@ -75,7 +75,7 @@ class Home(TemplateView):
         context["me"] = viewer
         context["my_shows"] = Show.objects.filter(host=viewer)
         context["known_shows"] = {mc.show for mc in MiniConfig.objects.filter(viewer=viewer)}
-        context["show_form"] = ShowForm()
+        context["show_form"] = ShowForm(auto_id="show_%s")
 
 class CreateShow(TemplateView):
     @with_oauth_signin
@@ -106,7 +106,7 @@ class ShowView(TemplateView):
         context["show"] = get_object_or_404(Show, host=context["host"], name=show_name)
         context["me"] = viewer
         context["miniconfigs"] = MiniConfig.objects.filter(show=context["show"], viewer=context["me"])
-        context["mc_form"] = MCForm()
+        context["mc_form"] = MCForm(auto_id="miniconfig_%s")
 
 class CreateMC(TemplateView):
     @with_oauth_signin
@@ -119,6 +119,16 @@ class CreateMC(TemplateView):
             form.save()
             raise Redirect(".")
 
+class RegionForm(ModelForm):
+    class Meta:
+        model = Region
+        fields = ["name", "start_x", "start_y", "start_z", "end_x", "end_y",
+                  "end_z", "tags"]
+        help_texts = {
+            "name": "The name of the region.",
+            "tags": "Freeform tags for searching.",
+        }
+
 class ManageShowView(TemplateView):
     template_name = "manage_show.html"
 
@@ -127,8 +137,24 @@ class ManageShowView(TemplateView):
         context["host"] = get_object_or_404(Viewer, twitch_username=host_name)
         context["show"] = get_object_or_404(Show, host=context["host"], name=show_name)
         context["me"] = viewer
+        context["region_form"] = RegionForm(auto_id="region_%s")
         if context["me"] != context["host"]:
             raise Redirect("../")
+
+class EditRegion(View):
+    def post(self, request, host_name, show_name):
+        viewer = Viewer.objects.get(pk=request.session["viewer_id"])
+        host = get_object_or_404(Viewer, twitch_username=host_name)
+        if viewer != host:
+            return HttpResponse("Not your Show!", status=401)
+
+        show = get_object_or_404(Show, host=host, name=show_name)
+        region = get_object_or_404(Region, show=show, name=request.POST["region_old_name"])
+        form = RegionForm(request.POST, instance=region)
+        if form.is_valid():
+            form.save()
+            return HttpResponse("<body onload='window.close()'></body>")
+        return HttpResponse("Failed.", status=500)
 
 class FetchRegionsView(ServerSideDatatableView):
     columns = ["name", "start_x", "start_y", "start_z", "end_x", "end_y",

@@ -33,7 +33,7 @@
       text-shadow: inherit;
     }
     .hidden {
-      display: none;
+      display: none !important;
     }
     .group {
       border-left: solid;
@@ -80,7 +80,7 @@
       float: right;
     }
     div.dt-buttons>.dt-button {
-      padding: 0px;
+      padding: 0px 5px 0px 5px;
     }
     .dataTables_wrapper .dataTables_filter input {
       border-color: #666;
@@ -94,6 +94,25 @@
     }
     div.dt-button-collection .dt-button.dt-button-active {
       background-color: #ccf;
+    }
+    table.dataTable tbody tr.odd {
+      background-color: #ccf4
+    }
+    div.dimmer {
+      background: radial-gradient(ellipse farthest-corner at center, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0.7) 100%);
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 2000;
+    }
+    .modal {
+      position: fixed;
+      z-index: 2002;
+      background-image: url("/static/water_pattern.png");
+      left: 5%;
+      border-radius: 10px;
     }
   </style>
   <script>
@@ -109,12 +128,21 @@
       collapsed.classList.remove("open");
     }
   }
+  function unmodal() {
+    $(".modal").each((i, e) => e.classList.add("hidden"));
+    $(".dimmer").each((i, e) => e.classList.add("hidden"));
+  }
+  function modal(elem) {
+    elem.classList.remove("hidden");
+    $(".dimmer").each((i, e) => e.classList.remove("hidden"));
+  }
   </script>
   {% load static %}
     <script type="module" src="{% static 'index.js' %}"></script>
     <script>import("/static/index.js").then(m => Packed = m)</script>
   </head>
   <body>
+    <div id="dimmer" class="dimmer hidden" onclick="unmodal()"></div>
     <h1>{% block page_name %}{% endblock %}</h1>
     {{ signin_message|safe }}<br/>
     <br/>

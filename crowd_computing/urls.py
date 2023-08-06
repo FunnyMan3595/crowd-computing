@@ -21,6 +21,7 @@ urlpatterns = [
         path('shows/<host_name>/<show_name>/', views.ShowView.as_view(), name='show'),
         path('shows/<host_name>/<show_name>/create_mc', views.CreateMC.as_view(), name='create_mcshow'),
         path('shows/<host_name>/<show_name>/manage/', views.ManageShowView.as_view(), name='manage_show'),
+        path('shows/<host_name>/<show_name>/manage/edit_region', views.EditRegion.as_view(), name='edit_region'),
         path('shows/<host_name>/<show_name>/minimaps/metadata', views.MinimapMetadataView.as_view(), name='minimap_metadata'),
         path('shows/<host_name>/<show_name>/minimaps/<x>/<y>/<z>', views.MinimapView.as_view(), name='show_minimap'),
         path('shows/<host_name>/<show_name>/fetch_regions', views.FetchRegionsView.as_view(), name='fetch_regions'),

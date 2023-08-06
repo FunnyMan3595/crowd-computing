@@ -12,12 +12,26 @@ function doCopy() {
   navigator.clipboard.writeText(field.value);
   document.getElementById("copiedNotice").classList.remove("hidden");
 }
+function finish_edit() {
+  unmodal();
+  window.addEventListener("focus", (event) => { dt.ajax.reload(null, false); }, { once: true });
+}
 </script>
 <input type="text" value="{{ show.minecraft_auth_secret }}" style="display: none" id=authSecret>
 <button onclick="doCopy()">Copy Minecraft authentication secret
 <div class="hidden" id=copiedNotice>Copied!</div></button>
 <h3 class="collapser" onclick="collapse(this)">Manage regions</h3>
-<div class="collapsed">
+<div class="collapsed" style="margin-top: -2em">
+<div class="modal hidden" id="region_modal">
+  <form action="edit_region" method="post" target="_blank" onsubmit="finish_edit(); return true">
+  {% csrf_token %}
+  <input type="hidden" name="region_old_name" id="region_old_name">
+  <table>
+  {{ region_form }}
+  <tr><th></th><td><input type="submit" value="Modify Region"></td></tr>
+  </table>
+  </form>
+</div>
 <table id="region-list">
     <thead>
         <tr>
@@ -37,9 +51,18 @@ function doCopy() {
     </thead>
 </table>
 <script>
-  let dt = new DataTable(document.getElementById("region-list"), {
+  let table = document.getElementById("region-list");
+  let dt = new DataTable(table, {
     dom: "Bfrtip",
-    buttons: ['colvis'],
+    buttons: [
+      'colvis',
+      {
+        text: 'Reload',
+        action: function ( e, dt, node, config ) {
+          dt.ajax.reload();
+        }
+      }
+    ],
     columnDefs: [
       {targets: [10], visible: true, searchable: false, sortable: false},
       {targets: [0,11], visible: true, searchable: true, sortable: true},
@@ -48,6 +71,23 @@ function doCopy() {
     sAjaxSource: "../fetch_regions",
     serverSide: true,
   });
+  table.onclick = (e) => {
+    let row = e.target?._DT_CellIndex?.row;
+    if (row === undefined) {
+      return;
+    }
+    let data = dt.rows(row).data()[0];
+    document.getElementById("region_old_name").value = data[0];
+    document.getElementById("region_name").value = data[0];
+    document.getElementById("region_start_x").value = data[1];
+    document.getElementById("region_start_y").value = data[2];
+    document.getElementById("region_start_z").value = data[3];
+    document.getElementById("region_end_x").value = data[4];
+    document.getElementById("region_end_y").value = data[5];
+    document.getElementById("region_end_z").value = data[6];
+    document.getElementById("region_tags").value = data[11];
+    modal(document.getElementById("region_modal"));
+  };
 </script>
 </div>
 {% endblock %}
