@@ -245,7 +245,8 @@ document.body.onload = () => {
 }
 </script>
 {% if miniconfigs %}
-<h3>Your Mini Configs</h3>
+<h3 class="collapser" onclick="collapse(this)">Your Mini Configs</h3>
+<div class="collapsed">
 {% for mc in miniconfigs %}
 <div class="group">
 <b>{{ mc.name }}</b><br/>
@@ -255,6 +256,7 @@ limit: {{mc.limit }}<br/>
 </div>
 <br/>
 {% endfor %}
+</div>
 {% endif %}
 <h3 class="collapser" onclick="collapse(this)">Add a new Mini Config</h3>
 <div class="collapsed">
