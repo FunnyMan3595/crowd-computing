@@ -10,10 +10,44 @@ function doCopy() {
   field.select();
   field.setSelectionRange(0, 100);
   navigator.clipboard.writeText(field.value);
-  document.getElementById("copiedNotice").style = "";
+  document.getElementById("copiedNotice").classList.remove("hidden");
 }
 </script>
 <input type="text" value="{{ show.minecraft_auth_secret }}" style="display: none" id=authSecret>
 <button onclick="doCopy()">Copy Minecraft authentication secret
-<div style="display: none" id=copiedNotice>Copied!</div></button>
+<div class="hidden" id=copiedNotice>Copied!</div></button>
+<h3 class="collapser" onclick="collapse(this)">Manage regions</h3>
+<div class="collapsed">
+<table id="region-list">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Start X</th>
+            <th>Start Y</th>
+            <th>Start Z</th>
+            <th>End X</th>
+            <th>End Y</th>
+            <th>End Z</th>
+            <th>Size X</th>
+            <th>Size Y</th>
+            <th>Size Z</th>
+            <th>Total Blocks</th>
+            <th>Tags</th>
+        </tr>
+    </thead>
+</table>
+<script>
+  let dt = new DataTable(document.getElementById("region-list"), {
+    dom: "Bfrtip",
+    buttons: ['colvis'],
+    columnDefs: [
+      {targets: [10], visible: true, searchable: false, sortable: false},
+      {targets: [0,11], visible: true, searchable: true, sortable: true},
+      {targets: '_all', visible:false, searchable: false, sortable: false}
+    ],
+    sAjaxSource: "../fetch_regions",
+    serverSide: true,
+  });
+</script>
+</div>
 {% endblock %}

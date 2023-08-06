@@ -1,6 +1,12 @@
 <html>
   <head>
   <title>{% block page_title %}{% endblock %} - Crowd Computing</title>
+  <script
+    src="https://code.jquery.com/jquery-3.7.0.min.js"
+      integrity="sha256-2Pmvv0kuTBOenSvLm6bvfBSSHrUJ+3A7x6P5Ebd07/g="
+        crossorigin="anonymous"></script>
+  <link href="https://cdn.datatables.net/v/dt/dt-1.13.6/b-2.4.1/b-colvis-2.4.1/datatables.min.css" rel="stylesheet">
+  <script src="https://cdn.datatables.net/v/dt/dt-1.13.6/b-2.4.1/b-colvis-2.4.1/datatables.min.js"></script>
   <style type="text/css" media="screen">
     body {
       background-image: url("/static/water_pattern.png");
@@ -22,6 +28,12 @@
     }
     select {
       background-color: #ddf;
+    }
+    button {
+      text-shadow: inherit;
+    }
+    .hidden {
+      display: none;
     }
     .group {
       border-left: solid;
@@ -50,6 +62,39 @@
       max-height: 0;
       overflow: hidden;
     }
+    .collapsed.open {
+      transition: max-height 0.5s ease-in;
+      max-height: 100vh;
+      overflow: visible;
+      animation-name: delayed-overflow;
+      animation-duration: 0.2s;
+    }
+    @keyframes delayed-overflow {
+      from { overflow: hidden; }
+    }
+    #region-list_filter > label {
+      display: flex;
+      line-height: 155%;
+    }
+    div.dt-buttons {
+      float: right;
+    }
+    div.dt-buttons>.dt-button {
+      padding: 0px;
+    }
+    .dataTables_wrapper .dataTables_filter input {
+      border-color: #666;
+      margin-right: 3px;
+    }
+    div.dt-button-collection {
+      background-color: #ddf;
+    }
+    div.dt-button-collection .dt-button {
+      background-color: #ddf;
+    }
+    div.dt-button-collection .dt-button.dt-button-active {
+      background-color: #ccf;
+    }
   </style>
   <script>
   function ready_refresh() {
@@ -60,15 +105,14 @@
     let collapsed = elem.nextElementSibling;
     if (open) {
       collapsed.classList.add("open");
-      collapsed.style.maxHeight = collapsed.scrollHeight + "px";
     } else {
       collapsed.classList.remove("open");
-      collapsed.style.maxHeight = null;
     }
   }
   </script>
   {% load static %}
-    <script type="module" src="{% static 'main.js' %}"></script>
+    <script type="module" src="{% static 'index.js' %}"></script>
+    <script>import("/static/index.js").then(m => Packed = m)</script>
   </head>
   <body>
     <h1>{% block page_name %}{% endblock %}</h1>

@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Crowd Computing web files",
   "main": "crowd_computing/app/js/index.js",
+  "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -17,9 +18,9 @@
   },
   "homepage": "https://github.com/FunnyMan3595/crowd-computing#readme",
   "dependencies": {
-    "@leavittsoftware/titanium-chip": "^6.0.1",
-    "@material/web": "^1.0.0-pre.14",
-    "easyscroller": "^1.0.1",
+    "@rollup/plugin-commonjs": "^25.0.3",
+    "@rollup/plugin-node-resolve": "^15.1.0",
+    "@rollup/plugin-typescript": "^11.1.2",
     "scroller": "^0.0.3"
   }
 }

@@ -23,6 +23,7 @@ urlpatterns = [
         path('shows/<host_name>/<show_name>/manage/', views.ManageShowView.as_view(), name='manage_show'),
         path('shows/<host_name>/<show_name>/minimaps/metadata', views.MinimapMetadataView.as_view(), name='minimap_metadata'),
         path('shows/<host_name>/<show_name>/minimaps/<x>/<y>/<z>', views.MinimapView.as_view(), name='show_minimap'),
+        path('shows/<host_name>/<show_name>/fetch_regions', views.FetchRegionsView.as_view(), name='fetch_regions'),
         path('minecraft/<method>', views.MinecraftView.as_view(), name='minecraft'),
         path('create_show', views.CreateShow.as_view(), name='create_show'),
         path('login', views.login, name='login'),

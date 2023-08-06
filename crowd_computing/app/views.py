@@ -10,6 +10,7 @@ from django.middleware.csrf import get_token
 from django.utils.crypto import get_random_string
 from django.core.paginator import Paginator, EmptyPage
 from authlib.integrations.django_client import OAuth
+from django_serverside_datatable.views import ServerSideDatatableView
 
 from crowd_computing.app.models import *
 
@@ -128,6 +129,17 @@ class ManageShowView(TemplateView):
         context["me"] = viewer
         if context["me"] != context["host"]:
             raise Redirect("../")
+
+class FetchRegionsView(ServerSideDatatableView):
+    columns = ["name", "start_x", "start_y", "start_z", "end_x", "end_y",
+               "end_z", "size_x", "size_y", "size_z", "blocks", "tags"]
+
+    def get(self, request, host_name, show_name):
+        host = get_object_or_404(Viewer, twitch_username=host_name)
+        show = get_object_or_404(Show, host=host, name=show_name)
+        self.queryset = Region.objects.filter(show=show)
+        request.user = None
+        return super().get(request)
 
 class MinimapMetadataView(View):
     def get(self, request, host_name, show_name):

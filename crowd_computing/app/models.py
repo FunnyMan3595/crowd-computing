@@ -57,6 +57,23 @@ class Region(models.Model):
     end_x = models.IntegerField()
     end_y = models.IntegerField()
     end_z = models.IntegerField()
+    tags = models.CharField(max_length=512, blank=True)
+
+    @property
+    def size_x(self):
+        return abs(self.start_x - self.end_x) + 1
+
+    @property
+    def size_y(self):
+        return abs(self.start_y - self.end_y) + 1
+
+    @property
+    def size_z(self):
+        return abs(self.start_z - self.end_z) + 1
+
+    @property
+    def blocks(self):
+        return self.size_x * self.size_y * self.size_z
 
     def __str__(self):
         return self.name
