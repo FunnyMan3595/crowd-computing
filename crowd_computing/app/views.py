@@ -150,6 +150,9 @@ class EditRegion(View):
 
         show = get_object_or_404(Show, host=host, name=show_name)
         region = get_object_or_404(Region, show=show, name=request.POST["region_old_name"])
+        if request.POST.get("delete", False):
+            region.delete()
+            return HttpResponse("<body onload='window.close()'></body>")
         form = RegionForm(request.POST, instance=region)
         if form.is_valid():
             form.save()
