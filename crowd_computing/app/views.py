@@ -273,8 +273,8 @@ class MinecraftView(View):
                 })
         if method == "get_specific":
             configs = []
-            for full_name in request.POST["names"].split(","):
-                viewer_username, name = full_name.split(",")
+            for full_name in request.POST["names"].split("|"):
+                viewer_username, name = full_name.split("/")
                 try:
                     configs.append(MiniConfig.objects.get(show=show, name=name, viewer__twitch_username=viewer_username))
                 except MiniConfig.DoesNotExist:
