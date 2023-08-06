@@ -216,6 +216,33 @@ function mutation_callback(mutations, observer) {
 }
 let observer = new MutationObserver(mutation_callback);
 observer.observe(minimap_holder, { attributes: true });
+
+function bind_button(id) {
+  let button = document.getElementById(id + "_button");
+  let text = document.getElementById(id + "_text");
+  let region_modal = document.getElementById("region_modal");
+
+  button.onclick = () => {
+    region_modal.region_id = id;
+    modal(region_modal);
+    return false;
+  }
+}
+
+function finish_pick_region(region) {
+  let region_modal = document.getElementById("region_modal");
+  let id = region_modal.region_id;
+  let text = document.getElementById(id + "_text");
+  let hidden = document.getElementById(id);
+  unmodal();
+  text.innerText = region;
+  hidden.value = region;
+}
+
+document.body.onload = () => {
+  bind_button("miniconfig_source");
+  bind_button("miniconfig_target");
+}
 </script>
 {% if miniconfigs %}
 <h3>Your Mini Configs</h3>
@@ -231,6 +258,57 @@ limit: {{mc.limit }}<br/>
 {% endif %}
 <h3 class="collapser" onclick="collapse(this)">Add a new Mini Config</h3>
 <div class="collapsed">
+<div class="modal hidden" id="region_modal" style="min-width: 50%; padding: 5px 10px 5px 10px">
+<table id="region-list">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Start X</th>
+            <th>Start Y</th>
+            <th>Start Z</th>
+            <th>End X</th>
+            <th>End Y</th>
+            <th>End Z</th>
+            <th>Size X</th>
+            <th>Size Y</th>
+            <th>Size Z</th>
+            <th>Total Blocks</th>
+            <th>Tags</th>
+        </tr>
+    </thead>
+</table>
+<script>
+  let table = document.getElementById("region-list");
+  let dt = new DataTable(table, {
+    dom: "Bfrtip",
+    buttons: [
+      'colvis',
+      {
+        text: 'Reload',
+        action: function ( e, dt, node, config ) {
+          dt.ajax.reload();
+        }
+      }
+    ],
+    columnDefs: [
+      {targets: [10], visible: true, searchable: false, sortable: false},
+      {targets: [0,11], visible: true, searchable: true, sortable: true},
+      {targets: '_all', visible:false, searchable: false, sortable: false}
+    ],
+    sAjaxSource: "fetch_regions",
+    serverSide: true,
+  });
+  table.style = "width: 100%";
+  table.onclick = (e) => {
+    let row = e.target?._DT_CellIndex?.row;
+    if (row === undefined) {
+      return;
+    }
+    let data = dt.rows(row).data()[0];
+    finish_pick_region(data[0]);
+  };
+</script>
+</div>
 <form action="create_mc" method="post">
   {% csrf_token %}
   <table>

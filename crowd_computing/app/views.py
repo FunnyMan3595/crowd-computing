@@ -1,7 +1,7 @@
 import base64
 
 from django.conf import settings
-from django.forms import ModelForm, CharField
+from django.forms import ModelForm, CharField, ModelChoiceField, HiddenInput
 from django.views.generic import View, TemplateView, DetailView, ListView
 from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse, JsonResponse, Http404
@@ -86,16 +86,30 @@ class CreateShow(TemplateView):
             form.save()
             raise Redirect("/shows/%s/%s/manage" % (viewer.twitch_username, show.name))
 
-class MCForm(ModelForm):
-    class Meta:
-        model = MiniConfig
-        fields = ["name", "source", "target", "limit"]
-        help_texts = {
-            "name": "The name of the Mini Config.  Spaces and underescores are interchangeable.",
-            "source": "Which block region to grab items from.",
-            "target": "Which block region to put items into.",
-            "limit": "If positive, the maximum number of this kind of item in the target inventory.",
-        }
+class RegionButton(HiddenInput):
+    is_hidden = False
+
+    def render(self, name, value, attrs, *args, **kwargs):
+        base = super().render(name, value, attrs, *args, **kwargs)
+        label = '<span id="%s_text">%s</span>' % (attrs["id"], value)
+        button = '<button id="%s_button">Pick Region</button>' % attrs["id"]
+        return "%s%s %s" % (base, label, button)
+
+def MCFormMaker(show):
+    class MCForm(ModelForm):
+        source = ModelChoiceField(queryset=Region.objects.filter(show=show), to_field_name="name", widget=RegionButton)
+        target = ModelChoiceField(queryset=Region.objects.filter(show=show), to_field_name="name", widget=RegionButton)
+
+        class Meta:
+            model = MiniConfig
+            fields = ["name", "source", "target", "limit"]
+            help_texts = {
+                "name": "The name of the Mini Config.  Spaces and underescores are interchangeable.",
+                "source": "Which block region to grab items from.",
+                "target": "Which block region to put items into.",
+                "limit": "If positive, the maximum number of this kind of item in the target inventory.",
+            }
+    return MCForm
 
 class ShowView(TemplateView):
     template_name = "show.html"
@@ -106,7 +120,7 @@ class ShowView(TemplateView):
         context["show"] = get_object_or_404(Show, host=context["host"], name=show_name)
         context["me"] = viewer
         context["miniconfigs"] = MiniConfig.objects.filter(show=context["show"], viewer=context["me"])
-        context["mc_form"] = MCForm(auto_id="miniconfig_%s")
+        context["mc_form"] = MCFormMaker(show=context["show"])(auto_id="miniconfig_%s")
 
 class CreateMC(TemplateView):
     @with_oauth_signin
@@ -114,7 +128,7 @@ class CreateMC(TemplateView):
         context["host"] = get_object_or_404(Viewer, twitch_username=host_name)
         context["show"] = get_object_or_404(Show, host=context["host"], name=show_name)
         mc = MiniConfig(show=context["show"], viewer=viewer)
-        form = MCForm(request.POST, instance=mc)
+        form = MCFormMaker(context["show"])(request.POST, instance=mc)
         if form.is_valid():
             form.save()
             raise Redirect(".")
