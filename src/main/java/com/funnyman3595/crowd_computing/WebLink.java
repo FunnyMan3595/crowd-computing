@@ -119,6 +119,18 @@ public class WebLink implements ICapabilitySerializable<CompoundTag> {
 		}, error_callback);
 	}
 
+	public void get_specific(String[] names, Consumer<PagedMiniConfigs> callback, Consumer<Exception> error_callback) {
+		HashMap<String, String> args = new HashMap<String, String>();
+		args.put("names", String.join("|", names));
+		fetch("get_specific", args, json -> {
+			try {
+				callback.accept(PagedMiniConfigs.load(json));
+			} catch (Exception e) {
+				error_callback.accept(e);
+			}
+		}, error_callback);
+	}
+
 	public record PagedMiniConfigs(int page, int page_count, MiniConfig[] configs) {
 		public static PagedMiniConfigs load(JsonObject object) {
 			return new PagedMiniConfigs(GsonHelper.getAsInt(object, "page_count", 1),

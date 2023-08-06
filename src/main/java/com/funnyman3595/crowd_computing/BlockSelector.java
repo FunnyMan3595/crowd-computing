@@ -21,6 +21,15 @@ public abstract class BlockSelector {
 
 	public abstract String get_id();
 
+	public abstract BlockPos get_center();
+
+	public static BlockPos avg_pos(BlockPos a, BlockPos b) {
+		int x = (a.getX() + b.getX()) / 2;
+		int y = (a.getY() + b.getY()) / 2;
+		int z = (a.getZ() + b.getZ()) / 2;
+		return new BlockPos(x, y, z);
+	}
+
 	public static BlockSelector load_nbt(CompoundTag tag) {
 		Function<CompoundTag, BlockSelector> loader = LOADERS.get(tag.getString("type"));
 		return loader.apply(tag);
@@ -53,6 +62,11 @@ public abstract class BlockSelector {
 		@Override
 		public String get_id() {
 			return ID;
+		}
+
+		@Override
+		public BlockPos get_center() {
+			return pos;
 		}
 
 		public static BlockSelector load_nbt(CompoundTag tag) {
@@ -122,6 +136,11 @@ public abstract class BlockSelector {
 		@Override
 		public String get_id() {
 			return ID;
+		}
+
+		@Override
+		public BlockPos get_center() {
+			return avg_pos(start, end);
 		}
 
 		public static BlockSelector load_nbt(CompoundTag tag) {

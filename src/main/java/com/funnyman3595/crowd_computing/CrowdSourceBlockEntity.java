@@ -7,6 +7,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 
+import com.funnyman3595.crowd_computing.WebLink.MiniConfig;
+
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -92,6 +94,10 @@ public class CrowdSourceBlockEntity extends BlockEntity implements MenuProvider,
 	@Override
 	public void setLevel(Level level) {
 		super.setLevel(level);
+
+		if (level.isClientSide) {
+			return;
+		}
 
 		tick = level.random.nextInt(20);
 
@@ -425,20 +431,24 @@ public class CrowdSourceBlockEntity extends BlockEntity implements MenuProvider,
 					}
 				}
 
-				CrowdMemberEntity mover = new CrowdMemberEntity(CrowdMemberEntity.TYPE, level);
-				mover.parent_pos = getBlockPos();
-				mover.absMoveTo(getBlockPos().getX() + 0.5, getBlockPos().getY() + 1, getBlockPos().getZ() + 0.5);
-				mover.task = new CrowdTask.MoveStuff(config.source(), config.target(), ItemStack.EMPTY, config.limit());
-				mover.setGameProfile(config.viewer());
-				level.addFreshEntity(mover);
-
-				spawned_movers.put(full_name, mover);
-				spawned_mover_ids.put(full_name, mover.getUUID());
-				setChanged();
+				requestSpawn(player, config);
 			}
 		}, error -> {
 			player.sendSystemMessage(Component.translatable("crowd_computing.link_failed", error));
 		});
+	}
+
+	public void requestSpawn(Player player, MiniConfig config) {
+		CrowdMemberEntity mover = new CrowdMemberEntity(CrowdMemberEntity.TYPE, level);
+		mover.parent_pos = getBlockPos();
+		mover.absMoveTo(getBlockPos().getX() + 0.5, getBlockPos().getY() + 1, getBlockPos().getZ() + 0.5);
+		mover.task = new CrowdTask.MoveStuff(config.source(), config.target(), ItemStack.EMPTY, config.limit());
+		mover.setGameProfile(config.viewer());
+		level.addFreshEntity(mover);
+
+		spawned_movers.put(config.full_name(), mover);
+		spawned_mover_ids.put(config.full_name(), mover.getUUID());
+		setChanged();
 	}
 
 	public static int chessboard_distance(BlockPos a, BlockPos b) {
@@ -612,5 +622,22 @@ public class CrowdSourceBlockEntity extends BlockEntity implements MenuProvider,
 				});
 			}
 		}
+	}
+
+	public static void spawn_at_nearest(Player player, MiniConfig miniConfig) {
+		Level level = player.level;
+		if (!known_sources.containsKey(level)) {
+			return;
+		}
+
+		BlockPos config_center = BlockSelector.avg_pos(miniConfig.source().get_center(),
+				miniConfig.target().get_center());
+		CrowdSourceBlockEntity entity = get_closest_loaded_in_range(level, config_center);
+		if (entity == null) {
+			player.sendSystemMessage(Component.translatable("crowd_computing.no_source_in_range", config_center));
+			return;
+		}
+
+		entity.requestSpawn(player, miniConfig);
 	}
 }

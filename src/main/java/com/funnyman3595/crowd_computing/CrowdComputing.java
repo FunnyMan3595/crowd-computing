@@ -3,6 +3,7 @@ package com.funnyman3595.crowd_computing;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.logging.LogUtils;
 
 import net.minecraftforge.fml.config.ModConfig;
@@ -15,6 +16,7 @@ import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.CapabilityManager;
 import net.minecraftforge.common.capabilities.CapabilityToken;
 import net.minecraftforge.common.crafting.CraftingHelper;
+import net.minecraftforge.common.util.LogicalSidedProvider;
 import net.minecraftforge.event.AddReloadListenerEvent;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.entity.EntityAttributeCreationEvent;
@@ -23,10 +25,13 @@ import net.minecraftforge.event.level.ChunkEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraft.client.gui.screens.MenuScreens;
+import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.util.thread.BlockableEventLoop;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTab;
@@ -37,6 +42,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraftforge.fml.DistExecutor;
+import net.minecraftforge.fml.LogicalSide;
 import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.registries.DeferredRegister;
@@ -48,8 +54,10 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.CompletableFuture;
 
 import org.slf4j.Logger;
+import org.spongepowered.asm.mixin.MixinEnvironment.Side;
 
 // The value here should match an entry in the META-INF/mods.toml file
 @Mod(CrowdComputing.MODID)
@@ -253,6 +261,23 @@ public class CrowdComputing {
 	}
 
 	private void registerCommands(final RegisterCommandsEvent event) {
+		event.getDispatcher().register(Commands.literal("crowd_computing").then(Commands.literal("spawn_config")
+				.then(Commands.argument("mini_config_name", StringArgumentType.string()).executes(ctx -> {
+					if (!(ctx.getSource().getEntity() instanceof Player)) {
+						ctx.getSource()
+								.sendSystemMessage(Component.translatable("crowd_computing.player_only_command"));
+					}
+					Player player = (Player) ctx.getSource().getEntity();
+					String[] names = { StringArgumentType.getString(ctx, "mini_config_name") };
+					WebLink.get(player).get_specific(names, (configs) -> {
+						onMainThread(() -> {
+							CrowdSourceBlockEntity.spawn_at_nearest(player, configs.configs()[0]);
+						});
+					}, (error) -> {
+						ctx.getSource().sendSystemMessage(Component.literal(error.toString()));
+					});
+					return 0;
+				}))));
 	}
 
 	private void registerConditionSerializers(final RegisterEvent event) {
@@ -291,5 +316,15 @@ public class CrowdComputing {
 
 	private void onBlockDestroy(final BlockEvent.BreakEvent event) {
 		CrowdSourceBlockEntity.on_block_broken((Level) event.getLevel(), event.getPos());
+	}
+
+	public CompletableFuture<Void> onMainThread(Runnable runnable) {
+		BlockableEventLoop<?> executor = LogicalSidedProvider.WORKQUEUE.get(LogicalSide.SERVER);
+		if (!executor.isSameThread()) {
+			return executor.submitAsync(runnable);
+		} else {
+			runnable.run();
+			return CompletableFuture.completedFuture(null);
+		}
 	}
 }
