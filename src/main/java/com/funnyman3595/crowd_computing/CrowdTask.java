@@ -272,7 +272,8 @@ public abstract class CrowdTask {
 							target_stack.getItem().getMaxStackSize(target_stack))) {
 						continue;
 					}
-					if (!container.canPlaceItemThroughFace(slot, held, Direction.DOWN)) {
+					if (!container.canPlaceItemThroughFace(slot, held, Direction.UP)
+							|| !container.canPlaceItem(slot, held)) {
 						continue;
 					}
 
