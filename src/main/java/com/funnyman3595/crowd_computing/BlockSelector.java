@@ -89,10 +89,26 @@ public abstract class BlockSelector {
 		public static final String ID = "region";
 		public BlockPos start;
 		public BlockPos end;
+		public String name;
+		public int color;
 
-		public Region(BlockPos start, BlockPos end) {
+		public Region(BlockPos start, BlockPos end, String name, int color) {
 			this.start = start;
 			this.end = end;
+			this.name = name;
+			this.color = color;
+		}
+
+		public int getMinX() {
+			return Math.min(start.getX(), end.getX());
+		}
+
+		public int getMinY() {
+			return Math.min(start.getY(), end.getY());
+		}
+
+		public int getMinZ() {
+			return Math.min(start.getZ(), end.getZ());
 		}
 
 		public int x_size() {
@@ -146,7 +162,9 @@ public abstract class BlockSelector {
 		public static BlockSelector load_nbt(CompoundTag tag) {
 			BlockPos start = new BlockPos(tag.getInt("start_x"), tag.getInt("start_y"), tag.getInt("start_z"));
 			BlockPos end = new BlockPos(tag.getInt("end_x"), tag.getInt("end_y"), tag.getInt("end_z"));
-			return new Region(start, end);
+			String name = tag.getString("name");
+			int color = tag.getInt("color");
+			return new Region(start, end, name, color);
 		}
 
 		@Override
@@ -158,6 +176,8 @@ public abstract class BlockSelector {
 			tag.putInt("end_x", end.getX());
 			tag.putInt("end_y", end.getY());
 			tag.putInt("end_z", end.getZ());
+			tag.putString("name", name);
+			tag.putInt("color", color);
 			return tag;
 		}
 

@@ -10,6 +10,7 @@ import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.fml.loading.FMLPaths;
+import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.capabilities.Capability;
@@ -20,6 +21,7 @@ import net.minecraftforge.common.util.LogicalSidedProvider;
 import net.minecraftforge.event.AddReloadListenerEvent;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.entity.EntityAttributeCreationEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent;
 import net.minecraftforge.event.level.BlockEvent;
 import net.minecraftforge.event.level.ChunkEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
@@ -29,6 +31,7 @@ import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.thread.BlockableEventLoop;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.player.Player;
@@ -57,7 +60,6 @@ import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 
 import org.slf4j.Logger;
-import org.spongepowered.asm.mixin.MixinEnvironment.Side;
 
 // The value here should match an entry in the META-INF/mods.toml file
 @Mod(CrowdComputing.MODID)
@@ -245,6 +247,7 @@ public class CrowdComputing {
 		MinecraftForge.EVENT_BUS.addListener(this::registerCommands);
 		MinecraftForge.EVENT_BUS.addListener(this::addReloadListeners);
 		MinecraftForge.EVENT_BUS.addListener(this::onServerStart);
+		MinecraftForge.EVENT_BUS.addListener(this::onPlayerConnected);
 		MinecraftForge.EVENT_BUS.addListener(this::onChunkLoad);
 		MinecraftForge.EVENT_BUS.addListener(this::onBlockUpdate);
 		MinecraftForge.EVENT_BUS.addListener(EventPriority.LOWEST, this::onBlockDestroy);
@@ -300,6 +303,12 @@ public class CrowdComputing {
 
 	private void onServerStart(final ServerStartedEvent event) {
 		SERVER = event.getServer();
+	}
+
+	private void onPlayerConnected(final PlayerLoggedInEvent event) {
+		Player player = event.getEntity();
+		CrowdComputingChannel.INSTANCE.send(PacketDistributor.PLAYER.with(() -> (ServerPlayer) player),
+				new CrowdComputingChannel.SyncAllRegions(WebLink.get(player).regions));
 	}
 
 	private void registerAttributes(final EntityAttributeCreationEvent event) {

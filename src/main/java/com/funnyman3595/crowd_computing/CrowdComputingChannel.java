@@ -1,5 +1,6 @@
 package com.funnyman3595.crowd_computing;
 
+import java.util.HashMap;
 import java.util.function.Supplier;
 
 import net.minecraft.core.BlockPos;
@@ -36,6 +37,10 @@ public class CrowdComputingChannel {
 				AuthSecretAck::handle);
 		INSTANCE.registerMessage(id++, ToggleRecipeLock.class, ToggleRecipeLock::encode, ToggleRecipeLock::decode,
 				ToggleRecipeLock::handle);
+		INSTANCE.registerMessage(id++, SyncOneRegion.class, SyncOneRegion::encode, SyncOneRegion::decode,
+				SyncOneRegion::handle);
+		INSTANCE.registerMessage(id++, SyncAllRegions.class, SyncAllRegions::encode, SyncAllRegions::decode,
+				SyncAllRegions::handle);
 	}
 
 	public static class WorksiteMessagePacket {
@@ -202,6 +207,95 @@ public class CrowdComputingChannel {
 				}
 
 				((WorksiteBlockEntity) entity).toggle_recipe_lock();
+			});
+			ctx.get().setPacketHandled(true);
+		}
+	}
+
+	public static class SyncOneRegion {
+		public final String dimension;
+		public final BlockSelector.Region region;
+
+		public SyncOneRegion(String dimension, BlockSelector.Region region) {
+			this.dimension = dimension;
+			this.region = region;
+		}
+
+		public static void encode(SyncOneRegion packet, FriendlyByteBuf buf) {
+			buf.writeUtf(packet.dimension);
+			buf.writeUtf(packet.region.name);
+			buf.writeBlockPos(packet.region.start);
+			buf.writeBlockPos(packet.region.end);
+			buf.writeInt(packet.region.color);
+		}
+
+		public static SyncOneRegion decode(FriendlyByteBuf buf) {
+			String dimension = buf.readUtf();
+			String name = buf.readUtf();
+			BlockPos start = buf.readBlockPos();
+			BlockPos end = buf.readBlockPos();
+			int color = buf.readInt();
+			return new SyncOneRegion(dimension, new BlockSelector.Region(start, end, name, color));
+		}
+
+		public static void handle(SyncOneRegion packet, Supplier<NetworkEvent.Context> ctx) {
+			ctx.get().enqueueWork(() -> {
+				DistExecutor.unsafeRunWhenOn(Dist.CLIENT,
+						() -> () -> CrowdComputingChannelClient.receive_one_region(packet.dimension, packet.region));
+			});
+			ctx.get().setPacketHandled(true);
+		}
+	}
+
+	public static class SyncAllRegions {
+		public final HashMap<String, HashMap<String, BlockSelector.Region>> regions;
+
+		public SyncAllRegions(HashMap<String, HashMap<String, BlockSelector.Region>> regions) {
+			this.regions = regions;
+		}
+
+		public static void encode(SyncAllRegions packet, FriendlyByteBuf buf) {
+			buf.writeInt(packet.regions.size());
+			for (String dimension : packet.regions.keySet()) {
+				buf.writeUtf(dimension);
+
+				HashMap<String, BlockSelector.Region> dimension_regions = packet.regions.get(dimension);
+				buf.writeInt(dimension_regions.size());
+				for (String name : dimension_regions.keySet()) {
+					buf.writeUtf(name);
+					BlockSelector.Region region = dimension_regions.get(name);
+					buf.writeBlockPos(region.start);
+					buf.writeBlockPos(region.end);
+					buf.writeInt(region.color);
+				}
+			}
+		}
+
+		public static SyncAllRegions decode(FriendlyByteBuf buf) {
+			HashMap<String, HashMap<String, BlockSelector.Region>> regions = new HashMap<String, HashMap<String, BlockSelector.Region>>();
+
+			int dimensions_count = buf.readInt();
+			for (int i = 0; i < dimensions_count; i++) {
+				String dimension = buf.readUtf();
+				HashMap<String, BlockSelector.Region> dimension_regions = new HashMap<String, BlockSelector.Region>();
+
+				int dimension_regions_count = buf.readInt();
+				for (int j = 0; j < dimension_regions_count; j++) {
+					String name = buf.readUtf();
+					BlockPos start = buf.readBlockPos();
+					BlockPos end = buf.readBlockPos();
+					int color = buf.readInt();
+					dimension_regions.put(name, new BlockSelector.Region(start, end, name, color));
+				}
+				regions.put(dimension, dimension_regions);
+			}
+			return new SyncAllRegions(regions);
+		}
+
+		public static void handle(SyncAllRegions packet, Supplier<NetworkEvent.Context> ctx) {
+			ctx.get().enqueueWork(() -> {
+				DistExecutor.unsafeRunWhenOn(Dist.CLIENT,
+						() -> () -> CrowdComputingChannelClient.receive_all_regions(packet.regions));
 			});
 			ctx.get().setPacketHandled(true);
 		}

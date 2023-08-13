@@ -21,6 +21,8 @@ import com.google.gson.JsonArray;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.GsonHelper;
 import net.minecraft.world.entity.player.Player;
@@ -31,6 +33,7 @@ import net.minecraftforge.network.PacketDistributor;
 
 public class WebLink implements ICapabilitySerializable<CompoundTag> {
 	private String auth_secret = null;
+	public HashMap<String, HashMap<String, BlockSelector.Region>> regions = new HashMap<String, HashMap<String, BlockSelector.Region>>();
 
 	public static WebLink get(Player player) {
 		return (WebLink) player.getCapability(CrowdComputing.WEB_LINK).orElseThrow(WebLinkNotFoundException::new);
@@ -147,7 +150,9 @@ public class WebLink implements ICapabilitySerializable<CompoundTag> {
 				source = new BlockSelector.Region(new BlockPos(GsonHelper.getAsInt(source_json, "start_x"),
 						GsonHelper.getAsInt(source_json, "start_y"), GsonHelper.getAsInt(source_json, "start_z")),
 						new BlockPos(GsonHelper.getAsInt(source_json, "end_x"),
-								GsonHelper.getAsInt(source_json, "end_y"), GsonHelper.getAsInt(source_json, "end_z")));
+								GsonHelper.getAsInt(source_json, "end_y"), GsonHelper.getAsInt(source_json, "end_z")),
+						GsonHelper.getAsString(source_json, "name"), GsonHelper.getAsInt(source_json, "color"));
+
 			}
 			BlockSelector target = null;
 			if (object.has("target")) {
@@ -155,7 +160,8 @@ public class WebLink implements ICapabilitySerializable<CompoundTag> {
 				target = new BlockSelector.Region(new BlockPos(GsonHelper.getAsInt(target_json, "start_x"),
 						GsonHelper.getAsInt(target_json, "start_y"), GsonHelper.getAsInt(target_json, "start_z")),
 						new BlockPos(GsonHelper.getAsInt(target_json, "end_x"),
-								GsonHelper.getAsInt(target_json, "end_y"), GsonHelper.getAsInt(target_json, "end_z")));
+								GsonHelper.getAsInt(target_json, "end_y"), GsonHelper.getAsInt(target_json, "end_z")),
+						GsonHelper.getAsString(target_json, "name"), GsonHelper.getAsInt(target_json, "color"));
 			}
 			return new MiniConfig(GsonHelper.getAsString(object, "viewer"), GsonHelper.getAsString(object, "name"),
 					source, target, GsonHelper.getAsInt(object, "limit"));
@@ -174,8 +180,8 @@ public class WebLink implements ICapabilitySerializable<CompoundTag> {
 		}
 	}
 
-	public void add_region(BlockPos start, BlockPos end, String name, boolean overwrite, Consumer<Void> callback,
-			Consumer<Exception> error_callback) {
+	public void add_region(Player player, BlockPos start, BlockPos end, String name, int color, boolean overwrite,
+			Consumer<Void> callback, Consumer<Exception> error_callback) {
 		HashMap<String, String> args = new HashMap<String, String>();
 		args.put("name", name);
 		args.put("start_x", "" + start.getX());
@@ -184,11 +190,20 @@ public class WebLink implements ICapabilitySerializable<CompoundTag> {
 		args.put("end_x", "" + end.getX());
 		args.put("end_y", "" + end.getY());
 		args.put("end_z", "" + end.getZ());
+		args.put("color", "" + color);
 		if (overwrite) {
 			args.put("overwrite", "true");
 		}
 		fetch("add_region", args, json -> {
 			callback.accept(null);
+			String dimension = player.getLevel().dimension().location().toString();
+			if (!regions.containsKey(dimension)) {
+				regions.put(dimension, new HashMap<String, BlockSelector.Region>());
+			}
+			BlockSelector.Region region = new BlockSelector.Region(start, end, name, color);
+			regions.get(dimension).put(name, region);
+			CrowdComputingChannel.INSTANCE.send(PacketDistributor.PLAYER.with(() -> (ServerPlayer) player),
+					new CrowdComputingChannel.SyncOneRegion(dimension, region));
 		}, error_callback);
 	}
 
@@ -197,12 +212,46 @@ public class WebLink implements ICapabilitySerializable<CompoundTag> {
 		if (auth_secret != null) {
 			tag.putString("auth_secret", auth_secret);
 		}
+
+		ListTag levels_tag = new ListTag();
+		for (String level_key : regions.keySet()) {
+			CompoundTag level_tag = new CompoundTag();
+			level_tag.putString("dimension", level_key);
+
+			ListTag regions_tag = new ListTag();
+			for (BlockSelector.Region region : regions.get(level_key).values()) {
+				regions_tag.add(region.save_to_nbt());
+			}
+			level_tag.put("regions", regions_tag);
+
+			levels_tag.add(level_tag);
+		}
+		tag.put("levels", levels_tag);
+
 		return tag;
 	}
 
 	public void deserializeNBT(CompoundTag tag) {
 		if (tag.contains("auth_secret")) {
 			auth_secret = tag.getString("auth_secret");
+		}
+
+		regions.clear();
+		if (tag.contains("levels")) {
+			ListTag levels_tag = tag.getList("levels", Tag.TAG_COMPOUND);
+			for (Tag raw_level_tag : levels_tag) {
+				CompoundTag level_tag = (CompoundTag) raw_level_tag;
+				String level_key = level_tag.getString("dimension");
+				regions.put(level_key, new HashMap<String, BlockSelector.Region>());
+				HashMap<String, BlockSelector.Region> level_regions = regions.get(level_key);
+
+				ListTag regions_tag = level_tag.getList("regions", Tag.TAG_COMPOUND);
+				for (Tag raw_region_tag : regions_tag) {
+					BlockSelector.Region region = (BlockSelector.Region) BlockSelector.Region
+							.load_nbt((CompoundTag) raw_region_tag);
+					level_regions.put(region.name, region);
+				}
+			}
 		}
 	}
 

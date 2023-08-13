@@ -1,5 +1,7 @@
 package com.funnyman3595.crowd_computing;
 
+import java.awt.Color;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -69,7 +71,8 @@ public class WandItem extends Item {
 	}
 
 	public void finishRegion(Player player, String name, boolean overwrite) {
-		WebLink.get(player).add_region(start, end, name, overwrite, (v) -> {
+		int color = Color.HSBtoRGB(player.level.random.nextFloat(), 1, 1);
+		WebLink.get(player).add_region(player, start, end, name, color, overwrite, (v) -> {
 			player.sendSystemMessage(Component.translatable("crowd_computing.region_created", name));
 		}, (e) -> {
 			player.sendSystemMessage(Component.translatable("crowd_computing.link_failed", e));
