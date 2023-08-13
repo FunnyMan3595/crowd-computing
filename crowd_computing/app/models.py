@@ -1,5 +1,6 @@
 from django.db import models
 from django.core.validators import RegexValidator
+from colorfield.fields import ColorField
 
 URLSAFE_PLUS_SPACE_VALIDATOR = RegexValidator("^[a-zA-Z0-9_ ]+$", message="Must contain only letters, numbers, underscores, and spaces.")
 
@@ -58,6 +59,7 @@ class Region(models.Model):
     end_y = models.IntegerField()
     end_z = models.IntegerField()
     tags = models.CharField(max_length=512, blank=True)
+    color = ColorField()
 
     @property
     def size_x(self):
@@ -87,6 +89,7 @@ class Region(models.Model):
             "end_y": self.end_y,
             "end_z": self.end_z,
             "name": self.name,
+            "color": self.color,
         }
 
 class MiniConfig(models.Model):

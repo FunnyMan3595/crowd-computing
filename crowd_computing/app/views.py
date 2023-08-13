@@ -11,6 +11,7 @@ from django.utils.crypto import get_random_string
 from django.core.paginator import Paginator, EmptyPage
 from authlib.integrations.django_client import OAuth
 from django_serverside_datatable.views import ServerSideDatatableView
+from colorfield.widgets import ColorWidget
 
 from crowd_computing.app.models import *
 
@@ -164,10 +165,11 @@ class EditMC(View):
             return JsonResponse(form.errors.get_json_data(), status=400)
 
 class RegionForm(ModelForm):
+    color = CharField(widget=ColorWidget, help_text="The color the region shows as while holding the wand.")
     class Meta:
         model = Region
         fields = ["name", "start_x", "start_y", "start_z", "end_x", "end_y",
-                  "end_z", "tags"]
+                  "end_z", "tags", "color"]
         help_texts = {
             "name": "The name of the region.",
             "tags": "Freeform tags for searching.",
@@ -205,7 +207,7 @@ class EditRegion(View):
 
 class FetchRegionsView(ServerSideDatatableView):
     columns = ["name", "start_x", "start_y", "start_z", "end_x", "end_y",
-               "end_z", "size_x", "size_y", "size_z", "blocks", "tags"]
+               "end_z", "size_x", "size_y", "size_z", "blocks", "tags", "color"]
 
     def get(self, request, host_name, show_name):
         host = get_object_or_404(Viewer, twitch_username=host_name)
@@ -294,6 +296,7 @@ class MinecraftView(View):
                     pre_existing.end_x=request.POST["end_x"]
                     pre_existing.end_y=request.POST["end_y"]
                     pre_existing.end_z=request.POST["end_z"]
+                    pre_existing.color=request.POST["color"]
                     pre_existing.save()
                     return JsonResponse({})
                 else:
@@ -308,6 +311,7 @@ class MinecraftView(View):
                 end_x=request.POST["end_x"],
                 end_y=request.POST["end_y"],
                 end_z=request.POST["end_z"],
+                color=request.POST["color"],
             )
             region.save()
             return JsonResponse({})

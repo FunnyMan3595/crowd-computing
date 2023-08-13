@@ -27,6 +27,7 @@ function finish_edit() {
   {% csrf_token %}
   <input type="hidden" name="region_old_name" id="region_old_name">
   <table>
+  {{ region_form.media }}
   {{ region_form }}
   <tr><th></th><td><input type="submit" value="Modify Region">
                    <input type="submit" name="delete" value="Delete Region"></td></tr>
@@ -48,6 +49,7 @@ function finish_edit() {
             <th>Size Z</th>
             <th>Total Blocks</th>
             <th>Tags</th>
+            <th>Color</th>
         </tr>
     </thead>
 </table>
