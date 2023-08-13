@@ -39,6 +39,8 @@ public class CrowdComputingChannel {
 				ToggleRecipeLock::handle);
 		INSTANCE.registerMessage(id++, SyncOneRegion.class, SyncOneRegion::encode, SyncOneRegion::decode,
 				SyncOneRegion::handle);
+		INSTANCE.registerMessage(id++, DeleteOneRegion.class, DeleteOneRegion::encode, DeleteOneRegion::decode,
+				DeleteOneRegion::handle);
 		INSTANCE.registerMessage(id++, SyncAllRegions.class, SyncAllRegions::encode, SyncAllRegions::decode,
 				SyncAllRegions::handle);
 	}
@@ -213,16 +215,15 @@ public class CrowdComputingChannel {
 	}
 
 	public static class SyncOneRegion {
-		public final String dimension;
 		public final BlockSelector.Region region;
 
-		public SyncOneRegion(String dimension, BlockSelector.Region region) {
-			this.dimension = dimension;
+		public SyncOneRegion(BlockSelector.Region region) {
 			this.region = region;
 		}
 
 		public static void encode(SyncOneRegion packet, FriendlyByteBuf buf) {
-			buf.writeUtf(packet.dimension);
+			buf.writeUtf(packet.region.dimension);
+			buf.writeInt(packet.region.id);
 			buf.writeUtf(packet.region.name);
 			buf.writeBlockPos(packet.region.start);
 			buf.writeBlockPos(packet.region.end);
@@ -231,26 +232,62 @@ public class CrowdComputingChannel {
 
 		public static SyncOneRegion decode(FriendlyByteBuf buf) {
 			String dimension = buf.readUtf();
+			int id = buf.readInt();
 			String name = buf.readUtf();
 			BlockPos start = buf.readBlockPos();
 			BlockPos end = buf.readBlockPos();
 			int color = buf.readInt();
-			return new SyncOneRegion(dimension, new BlockSelector.Region(start, end, name, color));
+			return new SyncOneRegion(new BlockSelector.Region(id, dimension, start, end, name, color));
 		}
 
 		public static void handle(SyncOneRegion packet, Supplier<NetworkEvent.Context> ctx) {
 			ctx.get().enqueueWork(() -> {
 				DistExecutor.unsafeRunWhenOn(Dist.CLIENT,
-						() -> () -> CrowdComputingChannelClient.receive_one_region(packet.dimension, packet.region));
+						() -> () -> CrowdComputingChannelClient.receive_one_region(packet.region));
+			});
+			ctx.get().setPacketHandled(true);
+		}
+	}
+
+	public static class DeleteOneRegion {
+		public final BlockSelector.Region region;
+
+		public DeleteOneRegion(BlockSelector.Region region) {
+			this.region = region;
+		}
+
+		public static void encode(DeleteOneRegion packet, FriendlyByteBuf buf) {
+			buf.writeUtf(packet.region.dimension);
+			buf.writeInt(packet.region.id);
+			buf.writeUtf(packet.region.name);
+			buf.writeBlockPos(packet.region.start);
+			buf.writeBlockPos(packet.region.end);
+			buf.writeInt(packet.region.color);
+		}
+
+		public static DeleteOneRegion decode(FriendlyByteBuf buf) {
+			String dimension = buf.readUtf();
+			int id = buf.readInt();
+			String name = buf.readUtf();
+			BlockPos start = buf.readBlockPos();
+			BlockPos end = buf.readBlockPos();
+			int color = buf.readInt();
+			return new DeleteOneRegion(new BlockSelector.Region(id, dimension, start, end, name, color));
+		}
+
+		public static void handle(DeleteOneRegion packet, Supplier<NetworkEvent.Context> ctx) {
+			ctx.get().enqueueWork(() -> {
+				DistExecutor.unsafeRunWhenOn(Dist.CLIENT,
+						() -> () -> CrowdComputingChannelClient.delete_one_region(packet.region));
 			});
 			ctx.get().setPacketHandled(true);
 		}
 	}
 
 	public static class SyncAllRegions {
-		public final HashMap<String, HashMap<String, BlockSelector.Region>> regions;
+		public final HashMap<String, HashMap<Integer, BlockSelector.Region>> regions;
 
-		public SyncAllRegions(HashMap<String, HashMap<String, BlockSelector.Region>> regions) {
+		public SyncAllRegions(HashMap<String, HashMap<Integer, BlockSelector.Region>> regions) {
 			this.regions = regions;
 		}
 
@@ -259,11 +296,12 @@ public class CrowdComputingChannel {
 			for (String dimension : packet.regions.keySet()) {
 				buf.writeUtf(dimension);
 
-				HashMap<String, BlockSelector.Region> dimension_regions = packet.regions.get(dimension);
+				HashMap<Integer, BlockSelector.Region> dimension_regions = packet.regions.get(dimension);
 				buf.writeInt(dimension_regions.size());
-				for (String name : dimension_regions.keySet()) {
-					buf.writeUtf(name);
-					BlockSelector.Region region = dimension_regions.get(name);
+				for (Integer id : dimension_regions.keySet()) {
+					buf.writeInt(id);
+					BlockSelector.Region region = dimension_regions.get(id);
+					buf.writeUtf(region.name);
 					buf.writeBlockPos(region.start);
 					buf.writeBlockPos(region.end);
 					buf.writeInt(region.color);
@@ -272,20 +310,21 @@ public class CrowdComputingChannel {
 		}
 
 		public static SyncAllRegions decode(FriendlyByteBuf buf) {
-			HashMap<String, HashMap<String, BlockSelector.Region>> regions = new HashMap<String, HashMap<String, BlockSelector.Region>>();
+			HashMap<String, HashMap<Integer, BlockSelector.Region>> regions = new HashMap<String, HashMap<Integer, BlockSelector.Region>>();
 
 			int dimensions_count = buf.readInt();
 			for (int i = 0; i < dimensions_count; i++) {
 				String dimension = buf.readUtf();
-				HashMap<String, BlockSelector.Region> dimension_regions = new HashMap<String, BlockSelector.Region>();
+				HashMap<Integer, BlockSelector.Region> dimension_regions = new HashMap<Integer, BlockSelector.Region>();
 
 				int dimension_regions_count = buf.readInt();
 				for (int j = 0; j < dimension_regions_count; j++) {
+					int id = buf.readInt();
 					String name = buf.readUtf();
 					BlockPos start = buf.readBlockPos();
 					BlockPos end = buf.readBlockPos();
 					int color = buf.readInt();
-					dimension_regions.put(name, new BlockSelector.Region(start, end, name, color));
+					dimension_regions.put(id, new BlockSelector.Region(id, dimension, start, end, name, color));
 				}
 				regions.put(dimension, dimension_regions);
 			}

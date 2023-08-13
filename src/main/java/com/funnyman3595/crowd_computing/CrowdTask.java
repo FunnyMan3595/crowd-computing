@@ -1,6 +1,7 @@
 package com.funnyman3595.crowd_computing;
 
 import java.util.HashMap;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -11,7 +12,9 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.Container;
 import net.minecraft.world.WorldlyContainer;
 import net.minecraft.world.entity.ai.goal.Goal;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.Vec3;
 
@@ -146,27 +149,63 @@ public abstract class CrowdTask {
 
 	public static class MoveStuff extends CrowdTask {
 		public static final String ID = "move_stuff";
-		public BlockSelector source;
-		public BlockSelector target;
+		public UUID player;
+		public String dimension;
+		public int source_id;
+		public int target_id;
 		public ItemStack held;
 		public int limit;
 
-		public MoveStuff(BlockSelector from, BlockSelector to) {
-			this(from, to, ItemStack.EMPTY, -1);
+		public MoveStuff(UUID player, String dimension, int from, int to) {
+			this(player, dimension, from, to, ItemStack.EMPTY, -1);
 		}
 
-		public MoveStuff(BlockSelector from, BlockSelector to, ItemStack held) {
-			this(from, to, held, -1);
+		public MoveStuff(UUID player, String dimension, int from, int to, ItemStack held) {
+			this(player, dimension, from, to, held, -1);
 		}
 
-		public MoveStuff(BlockSelector from, BlockSelector to, ItemStack held, int limit) {
-			this.source = from;
-			this.target = to;
+		public MoveStuff(UUID player, String dimension, int from, int to, ItemStack held, int limit) {
+			this.player = player;
+			this.dimension = dimension;
+			this.source_id = from;
+			this.target_id = to;
 			this.held = held;
 			this.limit = limit;
 		}
 
+		public BlockSelector.Region source(Level level) {
+			Player p = level.getPlayerByUUID(player);
+			if (player == null) {
+				return null;
+			}
+
+			WebLink link = WebLink.get(p);
+			if (!link.regions.containsKey(dimension)) {
+				return null;
+			}
+
+			return link.regions.get(dimension).getOrDefault(source_id, null);
+		}
+
+		public BlockSelector.Region target(Level level) {
+			Player p = level.getPlayerByUUID(player);
+			if (player == null) {
+				return null;
+			}
+
+			WebLink link = WebLink.get(p);
+			if (!link.regions.containsKey(dimension)) {
+				return null;
+			}
+
+			return link.regions.get(dimension).getOrDefault(target_id, null);
+		}
+
 		public static BlockPos get_random_block(BlockSelector selector, RandomSource rand) {
+			if (selector == null) {
+				return BlockPos.ZERO;
+			}
+
 			Stream<BlockPos> stream = selector.get_blocks();
 			if (selector.get_block_count() == 0) {
 				return BlockPos.ZERO;
@@ -182,9 +221,9 @@ public abstract class CrowdTask {
 		public void init(CrowdMemberEntity mob) {
 			if (held.isEmpty()) {
 				if (held.isEmpty()) {
-					mob.targetBlock = get_random_block(source, mob.level.random);
+					mob.targetBlock = get_random_block(source(mob.level), mob.level.random);
 				} else {
-					mob.targetBlock = get_random_block(target, mob.level.random);
+					mob.targetBlock = get_random_block(target(mob.level), mob.level.random);
 				}
 			}
 		}
@@ -193,9 +232,9 @@ public abstract class CrowdTask {
 		public void run(CrowdMemberEntity mob, Goal goal) {
 			if (mob.targetBlock == null || mob.targetBlock == BlockPos.ZERO) {
 				if (held.isEmpty()) {
-					mob.targetBlock = get_random_block(source, mob.level.random);
+					mob.targetBlock = get_random_block(source(mob.level), mob.level.random);
 				} else {
-					mob.targetBlock = get_random_block(target, mob.level.random);
+					mob.targetBlock = get_random_block(target(mob.level), mob.level.random);
 				}
 				return;
 			}
@@ -207,9 +246,9 @@ public abstract class CrowdTask {
 			BlockEntity entity = mob.level.getBlockEntity(mob.targetBlock);
 			if (entity == null || !(entity instanceof Container)) {
 				if (held.isEmpty()) {
-					mob.targetBlock = get_random_block(source, mob.level.random);
+					mob.targetBlock = get_random_block(source(mob.level), mob.level.random);
 				} else {
-					mob.targetBlock = get_random_block(target, mob.level.random);
+					mob.targetBlock = get_random_block(target(mob.level), mob.level.random);
 				}
 				return;
 			}
@@ -236,7 +275,7 @@ public abstract class CrowdTask {
 					}
 					held = container.removeItem(slot, stack.getCount());
 					if (!held.isEmpty()) {
-						mob.targetBlock = get_random_block(target, mob.level.random);
+						mob.targetBlock = get_random_block(target(mob.level), mob.level.random);
 						return;
 					}
 				}
@@ -260,7 +299,7 @@ public abstract class CrowdTask {
 					move_cap = Math.min(move_cap, limit - already_present);
 				}
 				if (move_cap <= 0) {
-					mob.targetBlock = get_random_block(target, mob.level.random);
+					mob.targetBlock = get_random_block(target(mob.level), mob.level.random);
 					return;
 				}
 				for (int slot : container.getSlotsForFace(Direction.UP)) {
@@ -295,10 +334,10 @@ public abstract class CrowdTask {
 					container.setItem(slot, stack);
 					if (held.isEmpty()) {
 						held = ItemStack.EMPTY;
-						mob.targetBlock = get_random_block(source, mob.level.random);
+						mob.targetBlock = get_random_block(source(mob.level), mob.level.random);
 						return;
 					} else if (move_cap <= 0) {
-						mob.targetBlock = get_random_block(target, mob.level.random);
+						mob.targetBlock = get_random_block(target(mob.level), mob.level.random);
 						return;
 					}
 				}
@@ -311,8 +350,10 @@ public abstract class CrowdTask {
 		}
 
 		public static CrowdTask load_nbt(CompoundTag tag) {
-			BlockSelector from = BlockSelector.load_nbt(tag.getCompound("from_blocks"));
-			BlockSelector to = BlockSelector.load_nbt(tag.getCompound("to_blocks"));
+			UUID player = tag.getUUID("player");
+			String dimension = tag.getString("dimension");
+			int from = tag.getInt("from_region_id");
+			int to = tag.getInt("to_region_id");
 			ItemStack held = ItemStack.EMPTY.copy();
 			if (tag.contains("held_item")) {
 				held.deserializeNBT(tag.getCompound("held_item"));
@@ -321,14 +362,16 @@ public abstract class CrowdTask {
 			if (tag.contains("limit")) {
 				limit = tag.getInt("limit");
 			}
-			return new MoveStuff(from, to, held, limit);
+			return new MoveStuff(player, dimension, from, to, held, limit);
 		}
 
 		@Override
 		public CompoundTag save_to_nbt() {
 			CompoundTag tag = super.save_to_nbt();
-			tag.put("from_blocks", source.save_to_nbt());
-			tag.put("to_blocks", target.save_to_nbt());
+			tag.putUUID("player", player);
+			tag.putString("dimension", dimension);
+			tag.putInt("from_region_id", source_id);
+			tag.putInt("to_region_id", target_id);
 			tag.put("held_item", held.serializeNBT());
 			tag.putInt("limit", limit);
 			return tag;

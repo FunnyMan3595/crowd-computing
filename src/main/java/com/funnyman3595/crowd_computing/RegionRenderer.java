@@ -1,6 +1,7 @@
 package com.funnyman3595.crowd_computing;
 
 import java.awt.Color;
+import java.time.LocalTime;
 import java.util.HashMap;
 import java.util.List;
 
@@ -16,15 +17,20 @@ import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.Direction;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.client.model.data.ModelData;
+import net.minecraftforge.network.PacketDistributor;
 
 public class RegionRenderer {
-	public static HashMap<String, HashMap<String, BlockSelector.Region>> client_region_cache = new HashMap<String, HashMap<String, BlockSelector.Region>>();
+	public static HashMap<String, HashMap<Integer, Region>> client_region_cache = new HashMap<String, HashMap<Integer, BlockSelector.Region>>();
+	public static BlockSelector.Region break_target = null;
+	public static LocalTime last_break_event = null;
+	public static int break_progress = 0;
 
 	public static void renderRegions(RenderLevelStageEvent event) {
 		PoseStack stack = event.getPoseStack();
@@ -35,7 +41,7 @@ public class RegionRenderer {
 		if (!client_region_cache.containsKey(dimension)) {
 			return;
 		}
-		HashMap<String, BlockSelector.Region> regions = client_region_cache.get(dimension);
+		HashMap<Integer, BlockSelector.Region> regions = client_region_cache.get(dimension);
 		if (regions.isEmpty()) {
 			return;
 		}
@@ -49,6 +55,11 @@ public class RegionRenderer {
 			stack.translate(region.getMinX(), region.getMinY(), region.getMinZ());
 			PoseStack text_stack = new PoseStack();
 			text_stack.mulPoseMatrix(stack.last().pose());
+
+			float alpha = 0.5f;
+			if (region == break_target && !LocalTime.now().isAfter(last_break_event.plusSeconds(1))) {
+				alpha = Math.max(0f, (20 - break_progress) * alpha / 20);
+			}
 
 			// Offset outline slightly to appear outside blocks.
 			stack.translate(-0.001, -0.001, -0.001);
@@ -67,7 +78,7 @@ public class RegionRenderer {
 				BakedQuad quad = quads.get(0);
 
 				buffer.putBulkData(stack.last(), quad, new float[] { 1, 1, 1, 1 }, color.getRed() / 255f,
-						color.getGreen() / 255f, color.getBlue() / 255f, 0.5f,
+						color.getGreen() / 255f, color.getBlue() / 255f, alpha,
 						new int[] { 0xF000F0, 0xF000F0, 0xF000F0, 0xF000F0 }, OverlayTexture.NO_OVERLAY, false);
 
 				if (d.getNormal().getY() == 0) {
@@ -134,6 +145,19 @@ public class RegionRenderer {
 			stack.popPose();
 		}
 		stack.popPose();
+	}
+
+	public static void breaking_region(Region region) {
+		LocalTime now = LocalTime.now();
+		if (region != break_target || now.isAfter(last_break_event.plusSeconds(1))) {
+			break_target = region;
+			last_break_event = now;
+			break_progress = 1;
+			return;
+		}
+
+		last_break_event = now;
+		break_progress += 1;
 	}
 
 }

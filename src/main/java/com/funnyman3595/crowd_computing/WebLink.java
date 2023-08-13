@@ -8,21 +8,28 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalTime;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.HexFormat;
 import java.util.Map;
 import java.util.function.Consumer;
 
 import org.jetbrains.annotations.Nullable;
 
 import com.google.gson.JsonObject;
+
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.GsonHelper;
 import net.minecraft.world.entity.player.Player;
@@ -33,7 +40,13 @@ import net.minecraftforge.network.PacketDistributor;
 
 public class WebLink implements ICapabilitySerializable<CompoundTag> {
 	private String auth_secret = null;
-	public HashMap<String, HashMap<String, BlockSelector.Region>> regions = new HashMap<String, HashMap<String, BlockSelector.Region>>();
+	public HashMap<String, HashMap<Integer, BlockSelector.Region>> regions = new HashMap<String, HashMap<Integer, BlockSelector.Region>>();
+	public String last_region_update = "2023-01-01";
+	public int tick = 0;
+
+	public BlockSelector.Region break_target = null;
+	public LocalTime last_break_event = null;
+	public int break_progress = 0;
 
 	public static WebLink get(Player player) {
 		return (WebLink) player.getCapability(CrowdComputing.WEB_LINK).orElseThrow(WebLinkNotFoundException::new);
@@ -106,28 +119,30 @@ public class WebLink implements ICapabilitySerializable<CompoundTag> {
 		}
 	}
 
-	public void get_all(Consumer<PagedMiniConfigs> callback, Consumer<Exception> error_callback) {
-		get_all(1, callback, error_callback);
+	public void get_all(Player player, Consumer<PagedMiniConfigs> callback, Consumer<Exception> error_callback) {
+		get_all(player, 1, callback, error_callback);
 	}
 
-	public void get_all(int page, Consumer<PagedMiniConfigs> callback, Consumer<Exception> error_callback) {
+	public void get_all(Player player, int page, Consumer<PagedMiniConfigs> callback,
+			Consumer<Exception> error_callback) {
 		HashMap<String, String> args = new HashMap<String, String>();
 		args.put("page", "" + page);
 		fetch("get_all", args, json -> {
 			try {
-				callback.accept(PagedMiniConfigs.load(json));
+				callback.accept(PagedMiniConfigs.load(player, this, json));
 			} catch (Exception e) {
 				error_callback.accept(e);
 			}
 		}, error_callback);
 	}
 
-	public void get_specific(String[] names, Consumer<PagedMiniConfigs> callback, Consumer<Exception> error_callback) {
+	public void get_specific(Player player, String[] names, Consumer<PagedMiniConfigs> callback,
+			Consumer<Exception> error_callback) {
 		HashMap<String, String> args = new HashMap<String, String>();
 		args.put("names", String.join("|", names));
 		fetch("get_specific", args, json -> {
 			try {
-				callback.accept(PagedMiniConfigs.load(json));
+				callback.accept(PagedMiniConfigs.load(player, this, json));
 			} catch (Exception e) {
 				error_callback.accept(e);
 			}
@@ -135,42 +150,70 @@ public class WebLink implements ICapabilitySerializable<CompoundTag> {
 	}
 
 	public record PagedMiniConfigs(int page, int page_count, MiniConfig[] configs) {
-		public static PagedMiniConfigs load(JsonObject object) {
+		public static PagedMiniConfigs load(Player player, WebLink link, JsonObject object) {
 			return new PagedMiniConfigs(GsonHelper.getAsInt(object, "page_count", 1),
 					GsonHelper.getAsInt(object, "page", 1),
-					MiniConfig.load_multiple(GsonHelper.getAsJsonArray(object, "mini_configs")));
+					MiniConfig.load_multiple(player, link, GsonHelper.getAsJsonArray(object, "mini_configs")));
 		}
 	}
 
-	public record MiniConfig(String viewer, String name, BlockSelector source, BlockSelector target, int limit) {
-		public static MiniConfig load(JsonObject object) {
-			BlockSelector source = null;
+	public record MiniConfig(String viewer, String name, String dimension, int source_id, int target_id, int limit) {
+		public static MiniConfig load(Player player, WebLink link, JsonObject object) {
+			String dimension = null;
+			int source_id = -1;
 			if (object.has("source")) {
 				JsonObject source_json = GsonHelper.getAsJsonObject(object, "source");
-				source = new BlockSelector.Region(new BlockPos(GsonHelper.getAsInt(source_json, "start_x"),
-						GsonHelper.getAsInt(source_json, "start_y"), GsonHelper.getAsInt(source_json, "start_z")),
-						new BlockPos(GsonHelper.getAsInt(source_json, "end_x"),
-								GsonHelper.getAsInt(source_json, "end_y"), GsonHelper.getAsInt(source_json, "end_z")),
-						GsonHelper.getAsString(source_json, "name"), GsonHelper.getAsInt(source_json, "color"));
-
+				BlockSelector.Region source = BlockSelector.Region.fromJson(source_json);
+				source_id = source.id;
+				dimension = source.dimension;
+				CrowdComputing.onMainThread(() -> {
+					if (!link.regions.containsKey(source.dimension)) {
+						link.regions.put(source.dimension, new HashMap<Integer, BlockSelector.Region>());
+					}
+					HashMap<Integer, BlockSelector.Region> dimension_regions = link.regions.get(source.dimension);
+					if (!dimension_regions.containsKey(source.id)) {
+						dimension_regions.put(source.id, source);
+					} else {
+						dimension_regions.get(source.id).update(source);
+					}
+					CrowdComputingChannel.INSTANCE.send(PacketDistributor.PLAYER.with(() -> (ServerPlayer) player),
+							new CrowdComputingChannel.SyncOneRegion(source));
+				});
 			}
-			BlockSelector target = null;
+			int target_id = -1;
 			if (object.has("target")) {
 				JsonObject target_json = GsonHelper.getAsJsonObject(object, "target");
-				target = new BlockSelector.Region(new BlockPos(GsonHelper.getAsInt(target_json, "start_x"),
-						GsonHelper.getAsInt(target_json, "start_y"), GsonHelper.getAsInt(target_json, "start_z")),
-						new BlockPos(GsonHelper.getAsInt(target_json, "end_x"),
-								GsonHelper.getAsInt(target_json, "end_y"), GsonHelper.getAsInt(target_json, "end_z")),
-						GsonHelper.getAsString(target_json, "name"), GsonHelper.getAsInt(target_json, "color"));
+				BlockSelector.Region target = BlockSelector.Region.fromJson(target_json);
+				CrowdComputing.onMainThread(() -> {
+					if (!link.regions.containsKey(target.dimension)) {
+						link.regions.put(target.dimension, new HashMap<Integer, BlockSelector.Region>());
+					}
+					HashMap<Integer, BlockSelector.Region> dimension_regions = link.regions.get(target.dimension);
+					if (!dimension_regions.containsKey(target.id)) {
+						dimension_regions.put(target.id, target);
+					} else {
+						dimension_regions.get(target.id).update(target);
+					}
+					CrowdComputingChannel.INSTANCE.send(PacketDistributor.PLAYER.with(() -> (ServerPlayer) player),
+							new CrowdComputingChannel.SyncOneRegion(target));
+				});
+
+				if (dimension == null) {
+					dimension = target.dimension;
+				} else if (!dimension.equals(target.dimension)) {
+					throw new RuntimeException("Bad config: Source and target dimensions do not match.");
+				}
+				target_id = target.id;
 			}
 			return new MiniConfig(GsonHelper.getAsString(object, "viewer"), GsonHelper.getAsString(object, "name"),
-					source, target, GsonHelper.getAsInt(object, "limit"));
+					dimension, source_id, target_id, GsonHelper.getAsInt(object, "limit"));
 		}
 
-		public static MiniConfig[] load_multiple(JsonArray array) {
+		public static MiniConfig[] load_multiple(Player player, WebLink link, JsonArray array) {
 			MiniConfig[] configs = new MiniConfig[array.size()];
 			for (int i = 0; i < configs.length; i++) {
-				configs[i] = load(GsonHelper.convertToJsonObject(array.get(i), "mini_configs array item"));
+				configs[i] = load(player, link,
+						GsonHelper.convertToJsonObject(array.get(i), "mini_configs array item"));
 			}
 			return configs;
 		}
@@ -184,26 +227,63 @@ public class WebLink implements ICapabilitySerializable<CompoundTag> {
 			Consumer<Void> callback, Consumer<Exception> error_callback) {
 		HashMap<String, String> args = new HashMap<String, String>();
 		args.put("name", name);
+		String dimension = player.getLevel().dimension().location().toString();
+		args.put("dimension", dimension);
 		args.put("start_x", "" + start.getX());
 		args.put("start_y", "" + start.getY());
 		args.put("start_z", "" + start.getZ());
 		args.put("end_x", "" + end.getX());
 		args.put("end_y", "" + end.getY());
 		args.put("end_z", "" + end.getZ());
-		args.put("color", "" + color);
+		args.put("color", HexFormat.of().toHexDigits(color).substring(2));
 		if (overwrite) {
 			args.put("overwrite", "true");
 		}
 		fetch("add_region", args, json -> {
-			callback.accept(null);
-			String dimension = player.getLevel().dimension().location().toString();
+			int id = GsonHelper.getAsInt(json, "id");
 			if (!regions.containsKey(dimension)) {
-				regions.put(dimension, new HashMap<String, BlockSelector.Region>());
+				regions.put(dimension, new HashMap<Integer, BlockSelector.Region>());
 			}
-			BlockSelector.Region region = new BlockSelector.Region(start, end, name, color);
-			regions.get(dimension).put(name, region);
+			BlockSelector.Region region = new BlockSelector.Region(id, dimension, start, end, name, color);
+			regions.get(dimension).put(id, region);
 			CrowdComputingChannel.INSTANCE.send(PacketDistributor.PLAYER.with(() -> (ServerPlayer) player),
-					new CrowdComputingChannel.SyncOneRegion(dimension, region));
+					new CrowdComputingChannel.SyncOneRegion(region));
+
+			callback.accept(null);
+		}, error_callback);
+	}
+
+	public void get_updated_regions(Player player, Consumer<Void> callback, Consumer<Exception> error_callback) {
+		HashMap<String, String> args = new HashMap<String, String>();
+		args.put("since", last_region_update);
+		fetch("get_updated_regions", args, json -> {
+			last_region_update = GsonHelper.getAsString(json, "now");
+			ObjectArrayList<BlockSelector.Region> regions_from_json = new ObjectArrayList<BlockSelector.Region>();
+
+			try {
+				for (JsonElement elem : GsonHelper.getAsJsonArray(json, "regions")) {
+					regions_from_json.add(
+							BlockSelector.Region.fromJson(GsonHelper.convertToJsonObject(elem, "regions array item")));
+				}
+			} catch (Exception e) {
+				error_callback.accept(e);
+			}
+
+			CrowdComputing.onMainThread(() -> {
+				for (BlockSelector.Region region : regions_from_json) {
+					if (!regions.containsKey(region.dimension)) {
+						regions.put(region.dimension, new HashMap<Integer, BlockSelector.Region>());
+					}
+					HashMap<Integer, BlockSelector.Region> dimension_regions = regions.get(region.dimension);
+					if (!dimension_regions.containsKey(region.id)) {
+						dimension_regions.put(region.id, region);
+					} else {
+						dimension_regions.get(region.id).update(region);
+					}
+					CrowdComputingChannel.INSTANCE.send(PacketDistributor.PLAYER.with(() -> (ServerPlayer) player),
+							new CrowdComputingChannel.SyncOneRegion(region));
+				}
+			});
 		}, error_callback);
 	}
 
@@ -242,14 +322,14 @@ public class WebLink implements ICapabilitySerializable<CompoundTag> {
 			for (Tag raw_level_tag : levels_tag) {
 				CompoundTag level_tag = (CompoundTag) raw_level_tag;
 				String level_key = level_tag.getString("dimension");
-				regions.put(level_key, new HashMap<String, BlockSelector.Region>());
-				HashMap<String, BlockSelector.Region> level_regions = regions.get(level_key);
+				regions.put(level_key, new HashMap<Integer, BlockSelector.Region>());
+				HashMap<Integer, BlockSelector.Region> level_regions = regions.get(level_key);
 
 				ListTag regions_tag = level_tag.getList("regions", Tag.TAG_COMPOUND);
 				for (Tag raw_region_tag : regions_tag) {
 					BlockSelector.Region region = (BlockSelector.Region) BlockSelector.Region
 							.load_nbt((CompoundTag) raw_region_tag);
-					level_regions.put(region.name, region);
+					level_regions.put(region.id, region);
 				}
 			}
 		}
@@ -304,5 +384,35 @@ public class WebLink implements ICapabilitySerializable<CompoundTag> {
 
 		fetch("delete_minimap", args, json -> {
 		}, error_callback);
+	}
+
+	public void breaking_region(Player player, BlockSelector.Region region) {
+		LocalTime now = LocalTime.now();
+		if (region != break_target || now.isAfter(last_break_event.plusSeconds(1))) {
+			break_target = region;
+			last_break_event = now;
+			break_progress = 1;
+			return;
+		}
+
+		last_break_event = now;
+		break_progress += 1;
+
+		if (break_progress >= 20) {
+			regions.get(region.dimension).remove(region.id);
+			CrowdComputingChannel.INSTANCE.send(PacketDistributor.PLAYER.with(() -> (ServerPlayer) player),
+					new CrowdComputingChannel.DeleteOneRegion(region));
+
+			HashMap<String, String> args = new HashMap<String, String>();
+			args.put("id", "" + region.id);
+			fetch("delete_region", args, (json) -> {
+			}, (error) -> {
+				player.sendSystemMessage(Component.translatable("crowd_computing.link_failed", error));
+			});
+
+			break_target = null;
+			last_break_event = null;
+			break_progress = 0;
+		}
 	}
 }

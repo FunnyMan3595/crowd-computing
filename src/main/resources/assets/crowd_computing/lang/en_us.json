@@ -47,5 +47,7 @@
   "crowd_computing.link_failed" : "Unable to contact Crowd Computing server: %s",
   "crowd_computing.wand_missing" : "Can't find your wand.  Keep it in your hand until the region is created.",
   "crowd_computing.player_only_command" : "This command must be run by a player.",
-  "crowd_computing.no_source_in_range" : "No crowd source in range of %s.  Is the area loaded?"
+  "crowd_computing.no_source_in_range" : "No crowd source in range of %s.  Is the area loaded?",
+  "crowd_computing.wrong_dimension" : "Can't spawn a mini in %s while in %s.",
+  "crowd_computing.no_such_config" : "Mini config \"%s\" is missing or incomplete."
 }

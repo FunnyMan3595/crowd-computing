@@ -20,13 +20,16 @@ import net.minecraftforge.common.crafting.CraftingHelper;
 import net.minecraftforge.common.util.LogicalSidedProvider;
 import net.minecraftforge.event.AddReloadListenerEvent;
 import net.minecraftforge.event.RegisterCommandsEvent;
+import net.minecraftforge.event.TickEvent.PlayerTickEvent;
 import net.minecraftforge.event.entity.EntityAttributeCreationEvent;
+import net.minecraftforge.event.entity.living.LivingAttackEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent;
 import net.minecraftforge.event.level.BlockEvent;
 import net.minecraftforge.event.level.ChunkEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraft.client.gui.screens.MenuScreens;
+import net.minecraft.client.gui.screens.social.PlayerEntry;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -248,6 +251,7 @@ public class CrowdComputing {
 		MinecraftForge.EVENT_BUS.addListener(this::addReloadListeners);
 		MinecraftForge.EVENT_BUS.addListener(this::onServerStart);
 		MinecraftForge.EVENT_BUS.addListener(this::onPlayerConnected);
+		MinecraftForge.EVENT_BUS.addListener(this::onPlayerTick);
 		MinecraftForge.EVENT_BUS.addListener(this::onChunkLoad);
 		MinecraftForge.EVENT_BUS.addListener(this::onBlockUpdate);
 		MinecraftForge.EVENT_BUS.addListener(EventPriority.LOWEST, this::onBlockDestroy);
@@ -272,7 +276,11 @@ public class CrowdComputing {
 					}
 					Player player = (Player) ctx.getSource().getEntity();
 					String[] names = { StringArgumentType.getString(ctx, "mini_config_name") };
-					WebLink.get(player).get_specific(names, (configs) -> {
+					WebLink.get(player).get_specific(player, names, (configs) -> {
+						if (configs.configs().length == 0) {
+							player.sendSystemMessage(
+									Component.translatable("crowd_computing.no_such_config", names[0]));
+						}
 						onMainThread(() -> {
 							CrowdSourceBlockEntity.spawn_at_nearest(player, configs.configs()[0]);
 						});
@@ -311,6 +319,19 @@ public class CrowdComputing {
 				new CrowdComputingChannel.SyncAllRegions(WebLink.get(player).regions));
 	}
 
+	private void onPlayerTick(final PlayerTickEvent event) {
+		WebLink link = WebLink.get(event.player);
+		if (!link.has_auth_secret()) {
+			return;
+		}
+		link.tick = (link.tick + 1) % 20;
+		if (link.tick == 0) {
+			link.get_updated_regions(event.player, (v) -> {
+			}, (e) -> {
+			});
+		}
+	}
+
 	private void registerAttributes(final EntityAttributeCreationEvent event) {
 		event.put(CrowdMemberEntity.TYPE, CrowdMemberEntity.attributes().build());
 	}
@@ -327,7 +348,7 @@ public class CrowdComputing {
 		CrowdSourceBlockEntity.on_block_broken((Level) event.getLevel(), event.getPos());
 	}
 
-	public CompletableFuture<Void> onMainThread(Runnable runnable) {
+	public static CompletableFuture<Void> onMainThread(Runnable runnable) {
 		BlockableEventLoop<?> executor = LogicalSidedProvider.WORKQUEUE.get(LogicalSide.SERVER);
 		if (!executor.isSameThread()) {
 			return executor.submitAsync(runnable);

@@ -1,18 +1,22 @@
 package com.funnyman3595.crowd_computing;
 
 import java.util.HashMap;
+import java.util.HexFormat;
 import java.util.function.Function;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import com.google.gson.JsonObject;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.util.GsonHelper;
 
 public abstract class BlockSelector {
 	public static HashMap<String, Function<CompoundTag, BlockSelector>> LOADERS = new HashMap<String, Function<CompoundTag, BlockSelector>>();
 	static {
-		LOADERS.put(Single.ID, Single::load_nbt);
-		LOADERS.put(Region.ID, Region::load_nbt);
+		LOADERS.put(Single.TYPE_ID, Single::load_nbt);
+		LOADERS.put(Region.TYPE_ID, Region::load_nbt);
 	}
 
 	public abstract Stream<BlockPos> get_blocks();
@@ -42,7 +46,7 @@ public abstract class BlockSelector {
 	}
 
 	public static class Single extends BlockSelector {
-		public static final String ID = "single";
+		public static final String TYPE_ID = "single";
 		public BlockPos pos;
 
 		public Single(BlockPos pos) {
@@ -61,7 +65,7 @@ public abstract class BlockSelector {
 
 		@Override
 		public String get_id() {
-			return ID;
+			return TYPE_ID;
 		}
 
 		@Override
@@ -86,13 +90,17 @@ public abstract class BlockSelector {
 	}
 
 	public static class Region extends BlockSelector {
-		public static final String ID = "region";
+		public static final String TYPE_ID = "region";
+		public int id;
+		public String dimension;
 		public BlockPos start;
 		public BlockPos end;
 		public String name;
 		public int color;
 
-		public Region(BlockPos start, BlockPos end, String name, int color) {
+		public Region(int id, String dimension, BlockPos start, BlockPos end, String name, int color) {
+			this.id = id;
+			this.dimension = dimension;
 			this.start = start;
 			this.end = end;
 			this.name = name;
@@ -151,7 +159,7 @@ public abstract class BlockSelector {
 
 		@Override
 		public String get_id() {
-			return ID;
+			return TYPE_ID;
 		}
 
 		@Override
@@ -160,16 +168,20 @@ public abstract class BlockSelector {
 		}
 
 		public static BlockSelector load_nbt(CompoundTag tag) {
+			int id = tag.getInt("id");
+			String dimension = tag.getString("dimension");
 			BlockPos start = new BlockPos(tag.getInt("start_x"), tag.getInt("start_y"), tag.getInt("start_z"));
 			BlockPos end = new BlockPos(tag.getInt("end_x"), tag.getInt("end_y"), tag.getInt("end_z"));
 			String name = tag.getString("name");
 			int color = tag.getInt("color");
-			return new Region(start, end, name, color);
+			return new Region(id, dimension, start, end, name, color);
 		}
 
 		@Override
 		public CompoundTag save_to_nbt() {
 			CompoundTag tag = super.save_to_nbt();
+			tag.putInt("id", id);
+			tag.putString("dimension", dimension);
 			tag.putInt("start_x", start.getX());
 			tag.putInt("start_y", start.getY());
 			tag.putInt("start_z", start.getZ());
@@ -181,5 +193,21 @@ public abstract class BlockSelector {
 			return tag;
 		}
 
+		public void update(Region target) {
+			start = target.start;
+			end = target.end;
+			name = target.name;
+			color = target.color;
+		}
+
+		public static Region fromJson(JsonObject json) {
+			return new Region(GsonHelper.getAsInt(json, "id"), GsonHelper.getAsString(json, "dimension"),
+					new BlockPos(GsonHelper.getAsInt(json, "start_x"), GsonHelper.getAsInt(json, "start_y"),
+							GsonHelper.getAsInt(json, "start_z")),
+					new BlockPos(GsonHelper.getAsInt(json, "end_x"), GsonHelper.getAsInt(json, "end_y"),
+							GsonHelper.getAsInt(json, "end_z")),
+					GsonHelper.getAsString(json, "name"),
+					HexFormat.fromHexDigits(GsonHelper.getAsString(json, "color").replaceFirst("#", "")) | 0xFF000000);
+		}
 	}
 }

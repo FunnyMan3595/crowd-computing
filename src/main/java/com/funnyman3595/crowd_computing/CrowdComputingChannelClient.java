@@ -5,7 +5,10 @@ import java.util.HashMap;
 import com.funnyman3595.crowd_computing.BlockSelector.Region;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraftforge.registries.ForgeRegistries;
 
 public class CrowdComputingChannelClient {
 	public static void set_worksite_message(Component message) {
@@ -27,14 +30,30 @@ public class CrowdComputingChannelClient {
 		}
 	}
 
-	public static void receive_one_region(String dimension, Region region) {
-		if (!RegionRenderer.client_region_cache.containsKey(dimension)) {
-			RegionRenderer.client_region_cache.put(dimension, new HashMap<String, BlockSelector.Region>());
-		}
-		RegionRenderer.client_region_cache.get(dimension).put(region.name, region);
+	public static void receive_one_region(Region region) {
+		CrowdComputing.onMainThread(() -> {
+			if (!RegionRenderer.client_region_cache.containsKey(region.dimension)) {
+				RegionRenderer.client_region_cache.put(region.dimension, new HashMap<Integer, BlockSelector.Region>());
+			}
+			RegionRenderer.client_region_cache.get(region.dimension).put(region.id, region);
+		});
 	}
 
-	public static void receive_all_regions(HashMap<String, HashMap<String, BlockSelector.Region>> regions) {
-		RegionRenderer.client_region_cache = regions;
+	public static void delete_one_region(Region region) {
+		CrowdComputing.onMainThread(() -> {
+			if (!RegionRenderer.client_region_cache.containsKey(region.dimension)) {
+				RegionRenderer.client_region_cache.put(region.dimension, new HashMap<Integer, BlockSelector.Region>());
+			}
+			RegionRenderer.client_region_cache.get(region.dimension).remove(region.id);
+
+			Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(
+					ForgeRegistries.SOUND_EVENTS.getValue((new ResourceLocation("minecraft:entity.chicken.egg"))), 1));
+		});
+	}
+
+	public static void receive_all_regions(HashMap<String, HashMap<Integer, Region>> regions) {
+		CrowdComputing.onMainThread(() -> {
+			RegionRenderer.client_region_cache = regions;
+		});
 	}
 }

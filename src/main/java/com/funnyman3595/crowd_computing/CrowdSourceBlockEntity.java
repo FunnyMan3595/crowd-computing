@@ -398,9 +398,9 @@ public class CrowdSourceBlockEntity extends BlockEntity implements MenuProvider,
 			return;
 		}
 
-		WebLink.get(player).get_all((configs) -> {
+		WebLink.get(player).get_all(player, (configs) -> {
 			for (WebLink.MiniConfig config : configs.configs()) {
-				if (config.source() == null || config.target() == null) {
+				if (config.source_id() < 0 || config.target_id() < 0) {
 					continue;
 				}
 				String full_name = config.full_name();
@@ -442,7 +442,8 @@ public class CrowdSourceBlockEntity extends BlockEntity implements MenuProvider,
 		CrowdMemberEntity mover = new CrowdMemberEntity(CrowdMemberEntity.TYPE, level);
 		mover.parent_pos = getBlockPos();
 		mover.absMoveTo(getBlockPos().getX() + 0.5, getBlockPos().getY() + 1, getBlockPos().getZ() + 0.5);
-		mover.task = new CrowdTask.MoveStuff(config.source(), config.target(), ItemStack.EMPTY, config.limit());
+		mover.task = new CrowdTask.MoveStuff(player.getUUID(), config.dimension(), config.source_id(),
+				config.target_id(), ItemStack.EMPTY, config.limit());
 		mover.setGameProfile(config.viewer());
 		level.addFreshEntity(mover);
 
@@ -626,12 +627,20 @@ public class CrowdSourceBlockEntity extends BlockEntity implements MenuProvider,
 
 	public static void spawn_at_nearest(Player player, MiniConfig miniConfig) {
 		Level level = player.level;
+		String dimension = level.dimension().location().toString();
+		if (!dimension.equals(miniConfig.dimension())) {
+			player.sendSystemMessage(
+					Component.translatable("crowd_computing.wrong_dimension", miniConfig.dimension(), dimension));
+		}
+
+		HashMap<Integer, BlockSelector.Region> regions = WebLink.get(player).regions.get(dimension);
+		BlockPos config_center = BlockSelector.avg_pos(regions.get(miniConfig.source_id()).get_center(),
+				regions.get(miniConfig.target_id()).get_center());
 		if (!known_sources.containsKey(level)) {
+			player.sendSystemMessage(Component.translatable("crowd_computing.no_source_in_range", config_center));
 			return;
 		}
 
-		BlockPos config_center = BlockSelector.avg_pos(miniConfig.source().get_center(),
-				miniConfig.target().get_center());
 		CrowdSourceBlockEntity entity = get_closest_loaded_in_range(level, config_center);
 		if (entity == null) {
 			player.sendSystemMessage(Component.translatable("crowd_computing.no_source_in_range", config_center));
