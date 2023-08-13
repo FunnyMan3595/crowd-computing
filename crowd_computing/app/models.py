@@ -86,6 +86,7 @@ class Region(models.Model):
             "end_x": self.end_x,
             "end_y": self.end_y,
             "end_z": self.end_z,
+            "name": self.name,
         }
 
 class MiniConfig(models.Model):
