@@ -50,6 +50,7 @@ function finish_edit() {
             <th>Total Blocks</th>
             <th>Tags</th>
             <th>Color</th>
+            <th>Dimension</th>
         </tr>
     </thead>
 </table>
@@ -82,6 +83,7 @@ function finish_edit() {
     let data = dt.rows(row).data()[0];
     document.getElementById("region_old_name").value = data[0];
     document.getElementById("region_name").value = data[0];
+    document.getElementById("region_dimension").value = data[13];
     document.getElementById("region_start_x").value = data[1];
     document.getElementById("region_start_y").value = data[2];
     document.getElementById("region_start_z").value = data[3];
@@ -89,6 +91,7 @@ function finish_edit() {
     document.getElementById("region_end_y").value = data[5];
     document.getElementById("region_end_z").value = data[6];
     document.getElementById("region_tags").value = data[11];
+    document.getElementById("region_color").jscolor.fromString(data[12]);
     modal(document.getElementById("region_modal"));
   };
 </script>

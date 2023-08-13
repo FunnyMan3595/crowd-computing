@@ -52,6 +52,7 @@ class Region(models.Model):
 
     show = models.ForeignKey(Show, on_delete=models.CASCADE)
     name = models.CharField(max_length=100)
+    dimension = models.CharField(max_length=100)
     start_x = models.IntegerField()
     start_y = models.IntegerField()
     start_z = models.IntegerField()
@@ -60,6 +61,7 @@ class Region(models.Model):
     end_z = models.IntegerField()
     tags = models.CharField(max_length=512, blank=True)
     color = ColorField()
+    last_update = models.DateTimeField(auto_now=True)
 
     @property
     def size_x(self):
@@ -82,6 +84,8 @@ class Region(models.Model):
 
     def to_minecraft(self):
         return {
+            "id": self.pk,
+            "dimension": self.dimension,
             "start_x": self.start_x,
             "start_y": self.start_y,
             "start_z": self.start_z,

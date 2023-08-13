@@ -1,4 +1,5 @@
 import base64
+import datetime
 
 from django.conf import settings
 from django.forms import ModelForm, CharField, ModelChoiceField, HiddenInput
@@ -168,8 +169,8 @@ class RegionForm(ModelForm):
     color = CharField(widget=ColorWidget, help_text="The color the region shows as while holding the wand.")
     class Meta:
         model = Region
-        fields = ["name", "start_x", "start_y", "start_z", "end_x", "end_y",
-                  "end_z", "tags", "color"]
+        fields = ["name", "dimension", "start_x", "start_y", "start_z", "end_x",
+                  "end_y", "end_z", "tags", "color"]
         help_texts = {
             "name": "The name of the region.",
             "tags": "Freeform tags for searching.",
@@ -207,7 +208,8 @@ class EditRegion(View):
 
 class FetchRegionsView(ServerSideDatatableView):
     columns = ["name", "start_x", "start_y", "start_z", "end_x", "end_y",
-               "end_z", "size_x", "size_y", "size_z", "blocks", "tags", "color"]
+               "end_z", "size_x", "size_y", "size_z", "blocks", "tags", "color",
+               "dimension"]
 
     def get(self, request, host_name, show_name):
         host = get_object_or_404(Viewer, twitch_username=host_name)
@@ -290,6 +292,7 @@ class MinecraftView(View):
 
             if pre_existing is not None:
                 if request.POST.get("overwrite", "false").casefold() == "true".casefold():
+                    pre_existing.dimension=request.POST["dimension"]
                     pre_existing.start_x=request.POST["start_x"]
                     pre_existing.start_y=request.POST["start_y"]
                     pre_existing.start_z=request.POST["start_z"]
@@ -298,13 +301,14 @@ class MinecraftView(View):
                     pre_existing.end_z=request.POST["end_z"]
                     pre_existing.color=request.POST["color"]
                     pre_existing.save()
-                    return JsonResponse({})
+                    return JsonResponse({"id": pre_existing.pk})
                 else:
                     return HttpResponse("A region by that name already exists.", status=409)
 
             region = Region(
                 show=show,
                 name=request.POST["name"],
+                dimension=request.POST["dimension"],
                 start_x=request.POST["start_x"],
                 start_y=request.POST["start_y"],
                 start_z=request.POST["start_z"],
@@ -314,7 +318,7 @@ class MinecraftView(View):
                 color=request.POST["color"],
             )
             region.save()
-            return JsonResponse({})
+            return JsonResponse({"id": region.pk})
         if method == "upload_minimap":
             try:
                 crowd_source = CrowdSource.objects.get(show=show, x=request.POST["x"], y=request.POST["y"], z=request.POST["z"])
@@ -328,9 +332,22 @@ class MinecraftView(View):
         if method == "delete_minimap":
             try:
                 crowd_source = CrowdSource.objects.get(show=show, x=request.POST["x"], y=request.POST["y"], z=request.POST["z"])
+                crowd_source.delete()
             except CrowdSource.DoesNotExist:
-                return JsonResponse({})
-            crowd_source.delete()
+                pass
+            return JsonResponse({})
+        if method == "get_updated_regions":
+            updated_regions = Region.objects.filter(show=show, last_update__gt=request.POST.get("since", "2023-01-01"))
+            return JsonResponse({
+                "now": datetime.datetime.now(),
+                "regions": [r.to_minecraft() for r in updated_regions],
+            })
+        if method == "delete_region":
+            try:
+                region = Region.objects.get(show=show, pk=request.POST["id"])
+                region.delete();
+            except Region.DoesNotExist:
+                pass
             return JsonResponse({})
         raise Http404()
 
